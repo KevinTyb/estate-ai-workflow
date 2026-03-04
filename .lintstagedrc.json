@@ -1,4 +1,9 @@
 {
-  "*.{js,jsx,ts,tsx}": ["eslint --fix", "prettier --write"],
-  "*.{json,md,css,scss}": ["prettier --write"]
+  "apps/web/**/*.{js,jsx,ts,tsx}": [
+    "bash -lc 'cd apps/web && eslint --fix \"$@\"' --"
+  ],
+  "apps/web/**/*.{json,md,css,scss}": [
+    "bash -lc 'cd apps/web && prettier --write \"$@\"' --"
+  ],
+  "*.{json,md}": ["prettier --write"]
 }
