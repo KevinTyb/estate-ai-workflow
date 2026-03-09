@@ -13,13 +13,16 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    "baseUrl": ".",
     "plugins": [
       {
         "name": "next"
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@estate-ai/schema": ["../../packages/schema/src/index.ts"],
+      "@estate-ai/schema/*": ["../../packages/schema/src/*"]
     }
   },
   "include": [
