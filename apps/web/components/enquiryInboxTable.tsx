@@ -443,7 +443,7 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
 
               <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
                 <h3 className="text-sm font-semibold text-slate-900">
-                  No Extracted Entities Yet.
+                  Extracted Entities
                 </h3>
 
                 {selectedEntityPills.length > 0 ? (
