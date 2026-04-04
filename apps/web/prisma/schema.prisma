@@ -8,19 +8,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Property {
-  id        String    @id @default(cuid())
-  ref       String    @unique //e.g. "BST-12A"
-  address   String
-  postcode  String?
-  bedrooms  Int?
-  rentPcm   Int?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  enquiries Enquiry[]
-  slots     Slot[]
-}
-
 model Slot {
   id         String   @id @default(cuid())
   propertyId String
@@ -34,6 +21,19 @@ model Slot {
 
   @@unique([propertyId, startsAt, endAt])
   @@index([propertyId, startsAt])
+}
+
+model Property {
+  id        String    @id @default(cuid())
+  ref       String    @unique //e.g. "BST-12A"
+  address   String
+  postcode  String?
+  bedrooms  Int?
+  rentPcm   Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  enquiries Enquiry[]
+  slots     Slot[]
 }
 
 model Enquiry {
@@ -51,10 +51,23 @@ model Enquiry {
   propertyId   String?
   property     Property?     @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   triageResult triageResult?
+  draftReply   DraftReply?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   @@index([propertyId])
+}
+
+model DraftReply {
+  id        String  @id @default(cuid())
+  enquiryId String  @unique
+  enquiry   Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  subject   String?
+  body      String
+  method    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model triageResult {
