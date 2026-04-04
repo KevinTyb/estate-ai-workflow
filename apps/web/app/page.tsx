@@ -19,7 +19,7 @@ export default async function Home() {
   const totalEnquiries = enquiries.length;
   const pendingCount = enquiries.filter((e) => e.status === "PENDING").length;
   const viewingCount = enquiries.filter(
-    (e) => (e.triageResult?.intent ?? e.intent) === "VIEWING",
+    (e) => e.triageResult?.intent === "VIEWING",
   ).length;
 
   return (

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 type TriageButtonProps = {
   enquiryId: string;
@@ -29,8 +30,10 @@ export function TriageButton({ enquiryId, triaged }: TriageButtonProps) {
       startTransition(() => {
         router.refresh();
       });
+      toast.success("Triage successful");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      toast.error("Triage unsuccessful");
     }
   }
 
@@ -48,7 +51,6 @@ export function TriageButton({ enquiryId, triaged }: TriageButtonProps) {
       >
         {isPending ? "Triaged" : triaged ? "Re-triage" : "Triage"}
       </Button>
-
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
