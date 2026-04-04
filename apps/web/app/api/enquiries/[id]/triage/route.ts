@@ -2,15 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { runRuleBasedTriage } from "@/lib/triage";
 import { NextResponse } from "next/server";
 
-type RouteContext = {
-  params: Promise<{
-    id: string;
-  }>;
-};
-
-export async function POST(_request: Request, context: RouteContext) {
+export async function POST(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
-    const { id } = await context.params;
+    const { id } = await params;
 
     const enquiry = await prisma.enquiry.findUnique({
       where: { id },

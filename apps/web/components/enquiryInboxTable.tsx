@@ -1,15 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { TriageButton } from "@/components/triageButton";
 import { Badge } from "@/components/ui/badge";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -18,6 +11,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import { EnquiryDetailSheet } from "./enquiryDetailSheet";
+import { formatConfidence, sourceLabel } from "@/lib/enquiries/helper";
+import { DraftResponse } from "./draftTypes";
 
 type EnquiryWithTriage = {
   id: string;
@@ -71,143 +68,11 @@ function badgeClasses(value: string | null) {
   }
 }
 
-function sourceLabel(source: string) {
-  return source.charAt(0).toUpperCase() + source.slice(1).toLowerCase();
-}
-
-function getEntityPills(entities: unknown): string[] {
-  if (!entities || typeof entities !== "object") return [];
-
-  const record = entities as Record<string, unknown>;
-  const pills: string[] = [];
-
-  if (typeof record.propertyRef === "string" && record.propertyRef) {
-    pills.push(record.propertyRef);
-  }
-
-  if (typeof record.budgetPcm === "number") {
-    pills.push(`£${record.budgetPcm} pcm`);
-  }
-
-  if (typeof record.email === "string" && record.email) {
-    pills.push(record.email);
-  }
-
-  if (typeof record.phone === "string" && record.phone) {
-    pills.push(record.phone);
-  }
-
-  if (Array.isArray(record.dates)) {
-    for (const date of record.dates) {
-      if (typeof date === "string" && date) {
-        pills.push(date);
-      }
-    }
-  }
-
-  return pills;
-}
-
-function getVisibleEntityPills(pills: string[], max = 2) {
-  return {
-    visible: pills.slice(0, max),
-    remaining: Math.max(pills.length - max, 0),
-  };
-}
-
-function formatConfidence(confidence: number | null | undefined) {
-  if (confidence == null) return null;
-  return `${Math.round(confidence * 100)}% confidence`;
-}
-
-function formatLabel(key: string) {
-  return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (char) => char.toUpperCase())
-    .trim();
-}
-
-function getEntityEntries(
-  entities: unknown,
-): Array<{ key: string; value: string }> {
-  if (!entities || typeof entities !== "object") return [];
-
-  const record = entities as Record<string, unknown>;
-  const entries: Array<{ key: string; value: string }> = [];
-
-  for (const [key, value] of Object.entries(record)) {
-    if (value == null) continue;
-
-    if (Array.isArray(value)) {
-      const cleaned = value.filter(Boolean).map(String);
-      if (cleaned.length > 0) {
-        entries.push({
-          key,
-          value: cleaned.join(", "),
-        });
-      }
-      continue;
-    }
-
-    if (typeof value === "number" && key === "budgetPcm") {
-      entries.push({
-        key,
-        value: `£${value} pcm`,
-      });
-      continue;
-    }
-
-    if (typeof value === "string" || typeof value === "number") {
-      entries.push({
-        key,
-        value: String(value),
-      });
-    }
-  }
-
-  return entries;
-}
-
-function DetailItem({
-  label,
-  value,
-  emptyLabel = "Not Available",
-}: {
-  label: string;
-  value: string | null | undefined;
-  emptyLabel?: string;
-}) {
-  const hasValue = value != null && value !== "";
-  return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <p className="text-sm text-slate-900">{hasValue ? value : emptyLabel}</p>
-    </div>
-  );
-}
-
-function formatDateTime(value: Date | null | undefined) {
-  if (!value) return "Not Available";
-
-  return new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
-}
-
 export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
   const [selectedEnquiry, setSelectedEnquiry] =
     useState<EnquiryWithTriage | null>(null);
 
-  const selectedEntityEntries = useMemo(() => {
-    return getEntityEntries(selectedEnquiry?.triageResult?.entities);
-  }, [selectedEnquiry]);
-
-  const selectedEntityPills = useMemo(() => {
-    return getEntityPills(selectedEnquiry?.triageResult?.entities);
-  }, [selectedEnquiry]);
+  const [, setDraftReply] = useState<DraftResponse | null>(null);
 
   if (enquiries.length === 0) {
     return (
@@ -228,27 +93,25 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
               <TableHead className="px-5 py-3">Status</TableHead>
               <TableHead className="px-5 py-3">Property</TableHead>
               <TableHead className="px-5 py-3">Message</TableHead>
-              <TableHead className="px-5 py-3">Extracted</TableHead>
               <TableHead className="px-5 py-3 text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
             {enquiries.map((enquiry) => {
-              const resolvedIntent =
-                enquiry.triageResult?.intent ?? enquiry.intent;
+              const resolvedIntent = enquiry.triageResult?.intent ?? null;
 
               const confidenceText = formatConfidence(
                 enquiry.triageResult?.confidence,
               );
 
-              const pills = getEntityPills(enquiry.triageResult?.entities);
-              const { visible, remaining } = getVisibleEntityPills(pills, 2);
-
               return (
                 <TableRow
                   key={enquiry.id}
-                  onClick={() => setSelectedEnquiry(enquiry)}
+                  onClick={() => {
+                    setSelectedEnquiry(enquiry);
+                    setDraftReply(null);
+                  }}
                   className={`cursor-pointer align-top transition-colors hover:bg-slate-50 ${
                     selectedEnquiry?.id === enquiry.id
                       ? "bg-sky-50/70 ring-1 ring-inset ring-sky-200"
@@ -270,17 +133,23 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
 
                   <TableCell className="px-5 py-4">
                     <div className="min-w-35 space-y-1">
-                      <Badge
-                        variant="outline"
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClasses(
-                          resolvedIntent,
-                        )}`}
-                      >
-                        {resolvedIntent ?? "—"}
-                      </Badge>
+                      {resolvedIntent ? (
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClasses(
+                            resolvedIntent,
+                          )}`}
+                        >
+                          {resolvedIntent}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-slate-400">
+                          Not triaged yet
+                        </span>
+                      )}
 
                       <div className="text-xs text-slate-500">
-                        {confidenceText ?? "Not triaged yet"}
+                        {confidenceText ?? null}
                       </div>
                     </div>
                   </TableCell>
@@ -306,30 +175,6 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
                     </p>
                   </TableCell>
 
-                  <TableCell className="px-5 py-4">
-                    {visible.length > 0 ? (
-                      <div className="flex max-w-55 flex-wrap gap-2">
-                        {visible.map((pill) => (
-                          <Badge
-                            key={pill}
-                            variant="secondary"
-                            className="rounded-full px-2 py-0.5 text-xs"
-                          >
-                            {pill}
-                          </Badge>
-                        ))}
-
-                        {remaining > 0 ? (
-                          <span className="self-center text-xs font-medium text-slate-500">
-                            +{remaining} more
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-slate-400">—</span>
-                    )}
-                  </TableCell>
-
                   <TableCell className="px-5 py-4 text-right">
                     <TriageButton
                       enquiryId={enquiry.id}
@@ -343,148 +188,14 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
         </Table>
       </div>
 
-      <Sheet
-        open={!!selectedEnquiry}
+      <EnquiryDetailSheet
+        selectedEnquiry={selectedEnquiry}
         onOpenChange={(open) => {
-          if (!open) setSelectedEnquiry(null);
+          if (!open) {
+            setSelectedEnquiry(null);
+          }
         }}
-      >
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl p-2">
-          {selectedEnquiry ? (
-            <div className="space-y-6">
-              <SheetHeader className="text-left">
-                <SheetTitle>Enquiry details</SheetTitle>
-                <SheetDescription>
-                  Review the full enquiry and triage result.
-                </SheetDescription>
-              </SheetHeader>
-
-              <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Enquiry
-                </h3>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <DetailItem
-                    label="Contact"
-                    value={selectedEnquiry.contactName}
-                    emptyLabel="Not Provided"
-                  />
-                  <DetailItem
-                    label="Email"
-                    value={selectedEnquiry.email}
-                    emptyLabel="No Email"
-                  />
-                  <DetailItem
-                    label="Source"
-                    value={sourceLabel(selectedEnquiry.source)}
-                    emptyLabel="Not Provided"
-                  />
-                  <DetailItem label="Status" value={selectedEnquiry.status} />
-                  <DetailItem
-                    label="Property ref"
-                    value={selectedEnquiry.propertyRef}
-                    emptyLabel="Not Provided"
-                  />
-                  <DetailItem
-                    label="Intent"
-                    value={
-                      selectedEnquiry.triageResult?.intent ??
-                      selectedEnquiry.intent
-                    }
-                    emptyLabel="Not Provided"
-                  />
-                </div>
-              </section>
-
-              <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Raw message
-                </h3>
-                <div className="rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-                  {selectedEnquiry.rawText}
-                </div>
-              </section>
-
-              <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Triage result
-                </h3>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <DetailItem
-                    label="Classified intent"
-                    value={
-                      selectedEnquiry.triageResult?.intent ??
-                      selectedEnquiry.intent ??
-                      "—"
-                    }
-                  />
-                  <DetailItem
-                    label="Confidence"
-                    value={
-                      formatConfidence(
-                        selectedEnquiry.triageResult?.confidence,
-                      ) ?? "Not triaged yet"
-                    }
-                  />
-                  <DetailItem
-                    label="Method"
-                    value={selectedEnquiry.triageResult?.method ?? "—"}
-                  />
-                  <DetailItem
-                    label="Triaged at"
-                    value={formatDateTime(
-                      selectedEnquiry.triageResult?.updatedAt,
-                    )}
-                  />
-                </div>
-              </section>
-
-              <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Extracted Entities
-                </h3>
-
-                {selectedEntityPills.length > 0 ? (
-                  <>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedEntityPills.map((pill) => (
-                        <Badge
-                          key={pill}
-                          variant="secondary"
-                          className="rounded-full px-2.5 py-1 text-xs"
-                        >
-                          {pill}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="space-y-3 pt-2">
-                      {selectedEntityEntries.map((entry) => (
-                        <div
-                          key={entry.key}
-                          className="rounded-lg border border-slate-200 px-3 py-2"
-                        >
-                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                            {formatLabel(entry.key)}
-                          </p>
-                          <p className="mt-1 text-sm text-slate-900">
-                            {entry.value}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-slate-500">
-                    No extracted Entities yet.
-                  </p>
-                )}
-              </section>
-            </div>
-          ) : null}
-        </SheetContent>
-      </Sheet>
+      />
     </>
   );
 }
