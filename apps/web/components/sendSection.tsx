@@ -104,6 +104,13 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
       setPreview(null);
       router.refresh();
     } catch (err) {
+      // A newer attempt owns this reply now: not an error, not a success.
+      if (err instanceof ApiError && err.code === "SEND_SUPERSEDED") {
+        toast.info("A newer send attempt is in progress.");
+        setPreview(null);
+        router.refresh();
+        return;
+      }
       const message = err instanceof Error ? err.message : "Send failed";
       setError(message);
       toast.error(message);
