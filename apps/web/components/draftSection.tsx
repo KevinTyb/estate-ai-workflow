@@ -119,6 +119,10 @@ export function DraftSection({
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                 Suggested slots
               </p>
+              <p className="text-xs text-slate-500">
+                Suggestions only. Nothing is booked until you confirm a slot
+                under Viewing.
+              </p>
               <div className="flex flex-wrap gap-2">
                 {draftReply.slots.map((slot) => (
                   <Badge key={slot.id} variant="secondary">
