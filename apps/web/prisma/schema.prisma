@@ -9,12 +9,13 @@ datasource db {
 }
 
 model Slot {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   startsAt   DateTime
   endAt      DateTime
-  isBooked   Boolean  @default(false)
+  isBooked   Boolean   @default(false)
+  bookings   Booking[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -48,14 +49,18 @@ model Enquiry {
 
   propertyRef String?
 
-  propertyId   String?
-  property     Property?     @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  triageResult triageResult?
-  draftReply   DraftReply?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  propertyId     String?
+  property       Property?       @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  triageResult   triageResult?
+  draftReply     DraftReply?
+  bookings       Booking[]
+  outboundEmails OutboundEmail[]
+  events         EnquiryEvent[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([propertyId])
+  @@index([createdAt])
 }
 
 model DraftReply {
@@ -65,6 +70,8 @@ model DraftReply {
   subject   String?
   body      String
   method    String
+  /// True when the agent changed the generated text before approving it.
+  edited    Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -82,6 +89,75 @@ model triageResult {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// A confirmed (or cancelled) viewing appointment for an enquiry.
+model Booking {
+  id        String        @id @default(cuid())
+  enquiryId String
+  enquiry   Enquiry       @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  slotId    String
+  slot      Slot          @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  status    BookingStatus @default(CONFIRMED)
+  notes     String?
+
+  /// Equals slotId while the booking is CONFIRMED and is cleared on
+  /// cancellation. The unique index makes the database itself reject a
+  /// second confirmed booking for the same slot, even under concurrency.
+  activeSlotId String? @unique
+
+  cancelledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([enquiryId])
+  @@index([slotId])
+}
+
+/// A reply sent to a customer. With the default "outbox" transport nothing
+/// leaves the system: the message is only recorded here.
+model OutboundEmail {
+  id        String  @id @default(cuid())
+  enquiryId String
+  enquiry   Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  toEmail   String
+  subject   String
+  body      String
+  transport String //"outbox" | "smtp"
+  messageId String?
+
+  sentAt DateTime @default(now())
+
+  @@index([enquiryId, sentAt])
+}
+
+/// Append-only audit trail of workflow actions; analytics are computed
+/// from these timestamps rather than from assumed time savings.
+model EnquiryEvent {
+  id        String    @id @default(cuid())
+  enquiryId String
+  enquiry   Enquiry   @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  type      EventType
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([enquiryId, createdAt])
+  @@index([type, createdAt])
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+enum EventType {
+  TRIAGED
+  DRAFT_GENERATED
+  DRAFT_APPROVED
+  EMAIL_SENT
+  VIEWING_BOOKED
+  BOOKING_CANCELLED
 }
 
 enum EnquiryStatus {

@@ -16,9 +16,11 @@ import {
   sourceLabel,
 } from "@/lib/enquiries/helper";
 import type { InboxEnquiry } from "@/lib/enquiries/types";
+import { BookingSection } from "./bookingSection";
 import { DetailItem } from "./detailItem";
 import { DetailSection } from "./detailSection";
 import { DraftSection } from "./draftSection";
+import { SendSection } from "./sendSection";
 
 type EnquiryDetailSheetProps = {
   selectedEnquiry: InboxEnquiry | null;
@@ -190,6 +192,10 @@ function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
         }}
         onAccept={handleAcceptDraft}
       />
+
+      <SendSection enquiry={enquiry} isDraftSaved={isDraftSaved} />
+
+      <BookingSection enquiry={enquiry} />
     </div>
   );
 }
