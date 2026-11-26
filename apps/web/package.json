@@ -15,7 +15,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@estate-ai/schema": "workspace:*",
