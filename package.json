@@ -13,7 +13,8 @@
     "typecheck": "pnpm --filter web typecheck",
     "test": "pnpm --filter web test",
     "db:migrate": "pnpm --filter web db:migrate",
-    "db:seed": "pnpm --filter web db:seed"
+    "db:seed": "pnpm --filter web db:seed",
+    "test:integration": "pnpm --filter web test:integration"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.1.0",
