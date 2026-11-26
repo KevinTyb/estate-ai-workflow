@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const bookingSchema = z.object({
-  enquiryId: z.string().cuid(),
-  slotId: z.string().cuid(),
+  enquiryId: z.cuid(),
+  slotId: z.cuid(),
   notes: z.string().optional(),
 });
 
