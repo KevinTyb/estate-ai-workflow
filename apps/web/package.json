@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@estate-ai/schema": "workspace:*",
@@ -43,6 +45,8 @@
     "prisma": "^6.19.1",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.7"
   }
 }
