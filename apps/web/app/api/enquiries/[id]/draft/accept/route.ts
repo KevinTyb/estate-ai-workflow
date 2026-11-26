@@ -1,4 +1,5 @@
 import { jsonError, readJson, validationError } from "@/lib/api/http";
+import { recordEvent } from "@/lib/events/recordEvent";
 import { prisma } from "@/lib/prisma";
 import { acceptDraftSchema } from "@estate-ai/schema";
 import { NextResponse } from "next/server";
@@ -19,13 +20,13 @@ export async function POST(
     });
     if (!enquiry) return jsonError("Enquiry not found", 404);
 
-    const { subject, body, method } = parsed.data;
+    const { subject, body, method, edited } = parsed.data;
 
     const [draftReply] = await prisma.$transaction([
       prisma.draftReply.upsert({
         where: { enquiryId: id },
-        update: { subject, body, method },
-        create: { enquiryId: id, subject, body, method },
+        update: { subject, body, method, edited },
+        create: { enquiryId: id, subject, body, method, edited },
       }),
       // Approving a draft moves a new enquiry forward, but must not move a
       // sent or scheduled enquiry backwards.
@@ -33,6 +34,7 @@ export async function POST(
         where: { id, status: "PENDING" },
         data: { status: "DRAFTED" },
       }),
+      recordEvent(prisma, id, "DRAFT_APPROVED", { method, edited }),
     ]);
 
     return NextResponse.json({ success: true, draftReply });

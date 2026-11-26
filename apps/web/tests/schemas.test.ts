@@ -7,6 +7,7 @@ describe("acceptDraftSchema", () => {
       subject: null,
       body: "Hello",
       method: "template",
+      edited: false,
     });
   });
 

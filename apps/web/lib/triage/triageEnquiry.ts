@@ -1,3 +1,4 @@
+import { recordEvent } from "@/lib/events/recordEvent";
 import { prisma } from "@/lib/prisma";
 import { matchProperty } from "@/lib/properties/matchProperty";
 import { runRuleBasedTriage } from "./index";
@@ -27,7 +28,13 @@ export async function triageEnquiry(enquiryId: string) {
     method: triage.method,
   };
 
-  const [triageResult] = await prisma.$transaction([
+  const [, triageResult] = await prisma.$transaction([
+    recordEvent(prisma, enquiry.id, "TRIAGED", {
+      intent: triage.intent,
+      confidence: triage.confidence,
+      method: triage.method,
+      propertyMatchedBy: match?.matchedBy ?? null,
+    }),
     prisma.triageResult.upsert({
       where: { enquiryId: enquiry.id },
       update: data,

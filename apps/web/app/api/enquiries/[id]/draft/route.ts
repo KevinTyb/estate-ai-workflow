@@ -1,4 +1,5 @@
 import { generateDraft } from "@/lib/drafting/generateDraft";
+import { recordEvent } from "@/lib/events/recordEvent";
 import { prisma } from "@/lib/prisma";
 import { getNextAvailableSlots } from "@/lib/slots/getNextAvailableSlot";
 import { NextResponse } from "next/server";
@@ -51,6 +52,13 @@ export async function POST(
           }
         : null,
       slots,
+    });
+
+    await recordEvent(prisma, enquiry.id, "DRAFT_GENERATED", {
+      method: draft.method,
+      intent: enquiry.triageResult?.intent ?? null,
+      replyRecommended: draft.replyRecommended,
+      slotsSuggested: slots.length,
     });
 
     return NextResponse.json({
