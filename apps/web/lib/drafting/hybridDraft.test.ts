@@ -23,7 +23,7 @@ const input: DraftInput = {
 };
 
 const llmReturning = (draft: LlmDraft) =>
-  vi.fn(async () => ({ data: draft, model: "claude-test", latencyMs: 50 }));
+  vi.fn(async () => ({ data: draft, model: "test-model", latencyMs: 50 }));
 
 const body = (middle: string) => `Hi Sam,\n\n${middle}\n\n${SIGN_OFF}`;
 
@@ -45,7 +45,7 @@ describe("hybridDraft", () => {
     );
     expect(draft).toMatchObject({
       method: "llm",
-      model: "claude-test",
+      model: "test-model",
       fallbackReason: null,
     });
   });

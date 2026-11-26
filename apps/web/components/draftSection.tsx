@@ -110,8 +110,8 @@ export function DraftSection({
           ) : null}
           {draftReply.method === "llm" ? (
             <p className="text-xs text-slate-500">
-              Written by Claude. Check it before approving; nothing is sent
-              until you do.
+              Written by the AI assistant. Check it before approving; nothing is
+              sent until you do.
             </p>
           ) : null}
           <DetailItem

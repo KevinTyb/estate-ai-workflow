@@ -19,7 +19,7 @@ describe("rule-based triage on the labelled eval set", () => {
 
   // The hybrid design relies on the rules knowing when they are unsure:
   // every case they get wrong must fall below the threshold, so it is
-  // passed to Claude instead of being answered confidently and wrongly.
+  // passed to the LLM instead of being answered confidently and wrongly.
   it("never answers a case it gets wrong with confidence", () => {
     for (const { text, intent } of triageCases) {
       const result = runRuleBasedTriage(text);

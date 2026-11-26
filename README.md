@@ -45,22 +45,22 @@ The app works fully without an API key, on the deterministic rule engine.
 Add `ANTHROPIC_API_KEY` to `apps/web/.env` to enable the hybrid engine:
 
 - **Triage**: the rules run first. Confident rule results (a specific intent
-  at 80%+) are used as-is; otherwise Claude classifies the enquiry with a
+  at 80%+) are used as-is; otherwise the language model classifies the enquiry with a
   Zod-validated structured output. Entities the model returns are kept only
   if they literally appear in the message. Model errors, refusals and invalid
   output fall back to the rules. Low-confidence, ambiguous or disputed
   results are flagged **Needs review**.
-- **Drafting**: Claude personalises the reply, then the draft is checked:
+- **Drafting**: the model personalises the reply, then the draft is checked:
   it may only mention listed viewing slots, may not claim a viewing is
   booked, and may not contain placeholders. Otherwise the template is used.
 - **Human approval**: AI drafts are never sent or booked automatically; an
   agent approves and sends every reply and confirms every booking.
 
 `AI_MODE=rules` turns the AI path off; `ANTHROPIC_MODEL` picks the model
-(default `claude-opus-5-5`). Compare the engines on the labelled cases in
+(default set in `.env.example`). Compare the engines on the labelled cases in
 `apps/web/evals/` with `pnpm --filter web eval:triage` (the hybrid run calls
 the API). On those 30 cases the rules alone score 24/30, and every miss is a
-low-confidence result that the hybrid engine hands to Claude.
+low-confidence result that the hybrid engine hands to the model.
 
 Every step records a timestamped event; `/analytics` derives response times,
 conversion and other metrics from those records.

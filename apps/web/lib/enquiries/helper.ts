@@ -4,7 +4,7 @@ export function sourceLabel(source: string) {
 
 const METHOD_LABELS: Record<string, string> = {
   rules: "Rules",
-  llm: "Claude (AI)",
+  llm: "AI",
   "rules-fallback": "Rules (AI unavailable)",
   template: "Template",
 };

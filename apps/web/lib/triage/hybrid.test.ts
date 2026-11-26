@@ -5,7 +5,7 @@ import { hybridTriage } from "./hybrid";
 
 function llmReturning(data: Partial<LlmTriage>) {
   return vi.fn(async () => ({
-    model: "claude-test",
+    model: "test-model",
     latencyMs: 120,
     data: {
       intent: "GENERAL",
@@ -57,7 +57,7 @@ describe("hybridTriage", () => {
       intent: "MAINTENANCE",
       confidence: 0.86,
       needsReview: false,
-      llm: { model: "claude-test", reason: "test" },
+      llm: { model: "test-model", reason: "test" },
     });
   });
 

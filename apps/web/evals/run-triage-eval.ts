@@ -1,8 +1,8 @@
 /**
- * Compare the rule engine with the hybrid (rules + Claude) engine on the
+ * Compare the rule engine with the hybrid (rules + LLM) engine on the
  * labelled cases:  pnpm eval:triage
  *
- * The hybrid run calls the Anthropic API for every case the rules are
+ * The hybrid run calls the LLM API for every case the rules are
  * unsure about, so it needs credentials and costs a little each run.
  */
 import { getAiConfig } from "@/lib/ai/client";
@@ -40,7 +40,7 @@ async function main() {
     return result.intent;
   });
   print(`Hybrid (${config.model})`, report);
-  console.log(`  Claude was consulted for ${llmCalls}/${report.total} cases.`);
+  console.log(`  The LLM was consulted for ${llmCalls}/${report.total} cases.`);
 }
 
 main().catch((error) => {

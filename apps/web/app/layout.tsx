@@ -16,9 +16,7 @@ export const metadata: Metadata = {
 
 function aiStatusLabel() {
   const config = getAiConfig();
-  return config.enabled
-    ? `AI: ${config.model} + rules`
-    : "Rules engine (AI off)";
+  return config.enabled ? "AI + rules" : "Rules engine (AI off)";
 }
 
 export default function RootLayout({
