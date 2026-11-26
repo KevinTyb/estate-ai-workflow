@@ -1,7 +1,9 @@
-import { Intent } from "@prisma/client";
-import { ExtractedEntities, extractEntities } from "./extract";
-import { classifyIntentRules } from "./classify";
+import type { Intent } from "@prisma/client";
+import { classifyIntent } from "./classify";
 import { scoreConfidence } from "./confidence";
+import { type ExtractedEntities, extractEntities } from "./extract";
+
+export type { ExtractedEntities } from "./extract";
 
 export type TriageOutput = {
   intent: Intent;
@@ -11,12 +13,12 @@ export type TriageOutput = {
 };
 
 export function runRuleBasedTriage(rawText: string): TriageOutput {
-  const intent = classifyIntentRules(rawText);
+  const classification = classifyIntent(rawText);
   const entities = extractEntities(rawText);
-  const confidence = scoreConfidence(intent, entities);
+  const confidence = scoreConfidence(classification, entities);
 
   return {
-    intent,
+    intent: classification.intent,
     confidence,
     entities,
     method: "rules",
