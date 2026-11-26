@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { TONES } from "@/lib/ui/tones";
 
 import { DraftButton } from "@/components/draftButton";
 import type { Ref } from "react";
@@ -43,11 +44,13 @@ export function DraftSection({
   return (
     <section
       ref={ref}
-      className="scroll-mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4"
+      className="scroll-mt-4 space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-slate-900">Draft reply</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-semibold whitespace-nowrap text-foreground">
+            Draft reply
+          </h3>
           {draftReply?.replyRecommended ? (
             <Badge
               variant="outline"
@@ -57,10 +60,7 @@ export function DraftSection({
             </Badge>
           ) : null}
           {isDraftSaved ? (
-            <Badge
-              variant="outline"
-              className="border-emerald-200 bg-emerald-50 text-emerald-700"
-            >
+            <Badge variant="outline" className={TONES.emerald}>
               Saved
             </Badge>
           ) : null}
@@ -70,11 +70,12 @@ export function DraftSection({
           {draftReply?.replyRecommended ? (
             <Button
               type="button"
-              variant="default"
+              variant="ghost"
               size="sm"
               onClick={onToggleExpanded}
+              aria-expanded={isDraftExpanded}
             >
-              {isDraftExpanded ? "Collapse" : "Expand"}
+              {isDraftExpanded ? "Show less" : "Show more"}
             </Button>
           ) : null}
 
@@ -88,13 +89,13 @@ export function DraftSection({
       </div>
 
       {!hasTriageResult ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Run triage before generating a draft.
         </p>
       ) : !draftReply ? (
-        <p className="text-sm text-slate-500">No draft generated yet.</p>
+        <p className="text-sm text-muted-foreground">No draft generated yet.</p>
       ) : !draftReply.replyRecommended ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           No reply recommended for this enquiry.
         </p>
       ) : (
@@ -104,12 +105,12 @@ export function DraftSection({
           }`}
         >
           {draftReply.fallbackReason ? (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Using the template: {draftReply.fallbackReason}
             </p>
           ) : null}
           {draftReply.method === "llm" ? (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Written by the AI assistant. Check it before approving; nothing is
               sent until you do.
             </p>
@@ -120,7 +121,7 @@ export function DraftSection({
           />
 
           <div className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Message
             </p>
 
@@ -135,10 +136,10 @@ export function DraftSection({
 
           {draftReply.slots.length > 0 ? (
             <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Suggested slots
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Suggestions only. Nothing is booked until you confirm a slot
                 under Viewing.
               </p>
@@ -162,7 +163,7 @@ export function DraftSection({
           <div
             className={`flex gap-2 transition-all duration-300 ${
               isDraftExpanded
-                ? "sticky bottom-0 border-t border-slate-200 bg-white pt-3"
+                ? "sticky bottom-0 border-t border-border bg-card pt-3"
                 : ""
             }`}
           >
@@ -184,7 +185,7 @@ export function DraftSection({
           </div>
 
           {draftAcceptError ? (
-            <p className="text-xs text-red-600">{draftAcceptError}</p>
+            <p className="text-xs text-destructive">{draftAcceptError}</p>
           ) : null}
         </div>
       )}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { AppHeader } from "@/components/appHeader";
+import { ThemeProvider } from "@/components/themeProvider";
 import { getAiConfig } from "@/lib/ai/client";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
@@ -14,22 +15,28 @@ export const metadata: Metadata = {
     "Triage enquiries, draft replies and book viewings for estate and letting agencies.",
 };
 
-function aiStatusLabel() {
-  const config = getAiConfig();
-  return config.enabled ? "AI + rules" : "Rules engine (AI off)";
-}
-
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const aiEnabled = getAiConfig().enabled;
   return (
-    <html lang="en-GB" className={cn("font-sans", geist.variable)}>
-      <body className="min-h-screen bg-slate-50">
-        <AppHeader aiStatus={aiStatusLabel()} />
-        {children}
-        <Toaster />
+    <html
+      lang="en-GB"
+      className={cn("font-sans", geist.variable)}
+      // next-themes sets the theme class before React hydrates.
+      suppressHydrationWarning
+    >
+      <body className="min-h-screen bg-background">
+        <ThemeProvider>
+          <AppHeader
+            aiEnabled={aiEnabled}
+            aiStatus={aiEnabled ? "AI + rules" : "Rules engine (AI off)"}
+          />
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

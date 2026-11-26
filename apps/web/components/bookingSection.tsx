@@ -8,6 +8,7 @@ import { ApiError, apiFetch } from "@/lib/api/client";
 import type { InboxEnquiry } from "@/lib/enquiries/types";
 import { formatSlot } from "@/lib/slots/formatSlots";
 import { DetailSection } from "./detailSection";
+import { TONES } from "@/lib/ui/tones";
 
 type SlotOption = { id: string; startsAt: string; endAt: string };
 
@@ -92,11 +93,11 @@ export function BookingSection({ enquiry }: { enquiry: InboxEnquiry }) {
     <DetailSection title="Viewing" defaultOpen>
       {booking ? (
         <div className="space-y-3">
-          <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+          <div className={`rounded-lg border px-3 py-2 ${TONES.violet}`}>
+            <p className="text-xs font-medium uppercase tracking-wide">
               Confirmed viewing
             </p>
-            <p className="mt-1 text-sm font-medium text-slate-900">
+            <p className="mt-1 text-sm font-medium text-foreground">
               {formatSlot(toDates(booking.slot))}
             </p>
           </div>
@@ -111,14 +112,16 @@ export function BookingSection({ enquiry }: { enquiry: InboxEnquiry }) {
           </Button>
         </div>
       ) : !isLinked ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           This enquiry is not linked to a property yet. Run triage to link it
           before booking a viewing.
         </p>
       ) : slots === null ? (
-        <p className="text-sm text-slate-500">Loading available slots...</p>
+        <p className="text-sm text-muted-foreground">
+          Loading available slots...
+        </p>
       ) : slots.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           No upcoming viewing slots for this property.
         </p>
       ) : (
@@ -128,7 +131,7 @@ export function BookingSection({ enquiry }: { enquiry: InboxEnquiry }) {
             {slots.map((slot) => (
               <label
                 key={slot.id}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm has-checked:border-sky-400 has-checked:bg-sky-50"
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm has-checked:border-ring has-checked:bg-accent"
               >
                 <input
                   type="radio"
@@ -136,7 +139,7 @@ export function BookingSection({ enquiry }: { enquiry: InboxEnquiry }) {
                   value={slot.id}
                   checked={selectedSlotId === slot.id}
                   onChange={() => setSelectedSlotId(slot.id)}
-                  className="accent-sky-600"
+                  className="accent-brand"
                 />
                 {formatSlot(toDates(slot))}
               </label>
@@ -153,7 +156,7 @@ export function BookingSection({ enquiry }: { enquiry: InboxEnquiry }) {
         </div>
       )}
       {error ? (
-        <p role="alert" className="mt-2 text-xs text-red-600">
+        <p role="alert" className="mt-2 text-xs text-destructive">
           {error}
         </p>
       ) : null}

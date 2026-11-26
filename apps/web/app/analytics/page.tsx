@@ -1,11 +1,13 @@
 import Link from "next/link";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  CalendarCheckIcon,
+  CheckCheckIcon,
+  InboxIcon,
+  SendIcon,
+} from "lucide-react";
+import { PageHeader } from "@/components/pageHeader";
+import { StatCard as Stat } from "@/components/statCard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { loadMetrics } from "@/lib/analytics/loadMetrics";
 import type { DurationStats } from "@/lib/analytics/metrics";
 import { cn } from "@/lib/utils";
@@ -35,32 +37,6 @@ function duration(minutes: number | null) {
   return `${(minutes / 60 / 24).toFixed(1)} days`;
 }
 
-function Stat({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string | number;
-  detail?: string;
-}) {
-  return (
-    <Card className="rounded-2xl shadow-sm">
-      <CardHeader className="pb-2">
-        <CardDescription>{label}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-semibold tracking-tight text-slate-900">
-          {value}
-        </p>
-        {detail ? (
-          <p className="mt-1 text-xs text-slate-500">{detail}</p>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
 function durationDetail(stats: DurationStats, noun: string) {
   return stats.count === 0
     ? `No ${noun} yet`
@@ -76,7 +52,7 @@ function Breakdown({
 }) {
   const total = rows.reduce((sum, [, n]) => sum + n, 0);
   return (
-    <Card className="rounded-2xl shadow-sm">
+    <Card className="shadow-xs">
       <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
@@ -85,14 +61,17 @@ function Breakdown({
           {rows.map(([label, count]) => (
             <div key={label} className="space-y-1">
               <div className="flex justify-between text-sm">
-                <dt className="text-slate-600">{label}</dt>
-                <dd className="font-medium tabular-nums text-slate-900">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="font-medium tabular-nums text-foreground">
                   {count}
                 </dd>
               </div>
-              <div className="h-1.5 rounded-full bg-slate-100" aria-hidden>
+              <div
+                className="h-1.5 overflow-hidden rounded-full bg-muted"
+                aria-hidden
+              >
                 <div
-                  className="h-1.5 rounded-full bg-sky-500"
+                  className="h-1.5 rounded-full bg-brand"
                   style={{ width: total ? `${(count / total) * 100}%` : 0 }}
                 />
               </div>
@@ -115,62 +94,64 @@ export default async function AnalyticsPage({
   const m = await loadMetrics({ since: rangeStart(RANGES[range].days) });
 
   return (
-    <main className="px-6 py-8">
+    <main className="px-4 py-8 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-              Analytics
-            </h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Calculated from recorded replies, bookings and their timestamps,
-              for enquiries received in the selected period.
-            </p>
-          </div>
-          <nav
-            aria-label="Date range"
-            className="flex gap-1 rounded-lg bg-white p-1 shadow-sm"
-          >
-            {(Object.keys(RANGES) as RangeKey[]).map((key) => (
-              <Link
-                key={key}
-                href={key === "all" ? "/analytics" : `/analytics?range=${key}`}
-                aria-current={range === key ? "page" : undefined}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100",
-                  range === key && "bg-slate-900 text-white hover:bg-slate-900",
-                )}
-              >
-                {RANGES[key].label}
-              </Link>
-            ))}
-          </nav>
-        </div>
+        <PageHeader
+          title="Analytics"
+          description="Calculated from recorded replies, bookings and their timestamps, for enquiries received in the selected period."
+          actions={
+            <nav
+              aria-label="Date range"
+              className="flex gap-1 rounded-lg border border-border bg-card p-1 shadow-xs"
+            >
+              {(Object.keys(RANGES) as RangeKey[]).map((key) => (
+                <Link
+                  key={key}
+                  href={
+                    key === "all" ? "/analytics" : `/analytics?range=${key}`
+                  }
+                  aria-current={range === key ? "page" : undefined}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground",
+                    range === key &&
+                      "bg-primary text-primary-foreground hover:bg-primary",
+                  )}
+                >
+                  {RANGES[key].label}
+                </Link>
+              ))}
+            </nav>
+          }
+        />
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <Stat
             label="Total enquiries"
+            icon={InboxIcon}
             value={m.totals.enquiries}
             detail={`${percent(m.rates.triageCoverage)} triaged`}
           />
           <Stat
             label="Drafts approved"
+            icon={CheckCheckIcon}
             value={m.totals.draftsApproved}
             detail={`${percent(m.rates.draftsApprovedUnedited)} approved without edits`}
           />
           <Stat
             label="Replies sent"
+            icon={SendIcon}
             value={m.totals.replied}
             detail={`${percent(m.rates.replyRate)} of non-spam enquiries`}
           />
           <Stat
             label="Viewings booked"
+            icon={CalendarCheckIcon}
             value={m.totals.viewingsBooked}
             detail={`${m.totals.bookingsCancelled} cancelled`}
           />
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <Stat
             label="Median first response"
             value={duration(m.firstResponse.medianMinutes)}

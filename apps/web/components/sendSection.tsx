@@ -109,7 +109,7 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
   return (
     <DetailSection title="Send reply" defaultOpen>
       <div className="space-y-3">
-        {hint ? <p className="text-sm text-slate-500">{hint}</p> : null}
+        {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
 
         <Button
           type="button"
@@ -125,17 +125,17 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
             {enquiry.outboundEmails.map((email) => (
               <li
                 key={email.id}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className="rounded-lg border border-border px-3 py-2 text-sm"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-slate-900">
+                  <span className="font-medium text-foreground">
                     {email.subject}
                   </span>
                   <Badge variant="outline">
                     {email.transport === "smtp" ? "MailDev" : "Simulated"}
                   </Badge>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-muted-foreground">
                   To {email.toEmail} · {formatSentAt(email.sentAt)}
                 </p>
               </li>
@@ -144,7 +144,7 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
         ) : null}
 
         {error && !preview ? (
-          <p role="alert" className="text-xs text-red-600">
+          <p role="alert" className="text-xs text-destructive">
             {error}
           </p>
         ) : null}
@@ -167,29 +167,29 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
           </DialogHeader>
 
           {preview ? (
-            <div className="space-y-3 rounded-lg border border-slate-200 p-4">
-              <p className="text-xs text-slate-500">
-                <span className="font-medium text-slate-700">To:</span>{" "}
+            <div className="space-y-3 rounded-lg border border-border p-4">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground/80">To:</span>{" "}
                 {preview.to}
               </p>
-              <p className="text-xs text-slate-500">
-                <span className="font-medium text-slate-700">Subject:</span>{" "}
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground/80">Subject:</span>{" "}
                 {preview.subject}
               </p>
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-slate-800">
+              <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-foreground">
                 {preview.body}
               </pre>
             </div>
           ) : null}
 
           {preview?.alreadySent ? (
-            <p className="text-sm text-amber-700">
+            <p className="text-sm text-amber-700 dark:text-amber-300">
               This draft has already been sent. Edit and accept it again to send
               another reply.
             </p>
           ) : null}
           {error ? (
-            <p role="alert" className="text-xs text-red-600">
+            <p role="alert" className="text-xs text-destructive">
               {error}
             </p>
           ) : null}
