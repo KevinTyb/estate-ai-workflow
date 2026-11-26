@@ -3,80 +3,61 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import type { DraftResponse } from "@/components/draftTypes";
+import { draftFromSaved, type DraftResponse } from "@/components/draftTypes";
+import type { InboxEnquiry } from "@/lib/enquiries/types";
 
-type EnquiryWithTriage = {
-  id: string;
-  contactName: string | null;
-  email: string | null;
-  source: string;
-  status: string;
-  intent: string | null;
-  propertyRef: string | null;
-  rawText: string;
-  createdAt: Date;
-  triageResult: {
-    id: string;
-    intent: string | null;
-    confidence: number | null;
-    entities: unknown;
-    method: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null;
-};
+/**
+ * Draft state for one enquiry. The owning component is keyed by enquiry id,
+ * so state starts fresh from the saved draft whenever another enquiry opens.
+ */
+export function useEnquiryDetailSheet(enquiry: InboxEnquiry) {
+  const savedDraft = enquiry.draftReply;
 
-type UseEnquiryDetailSheetParams = {
-  selectedEnquiry: EnquiryWithTriage | null;
-};
-
-export function useEnquiryDetailSheet({
-  selectedEnquiry,
-}: UseEnquiryDetailSheetParams) {
-  const [draftReply, setDraftReply] = useState<DraftResponse | null>(null);
+  const [draftReply, setDraftReply] = useState<DraftResponse | null>(() =>
+    draftFromSaved(savedDraft),
+  );
   const [isDraftExpanded, setIsDraftExpanded] = useState(false);
   const [isAcceptingDraft, setIsAcceptingDraft] = useState(false);
   const [draftAcceptError, setDraftAcceptError] = useState<string | null>(null);
 
-  const sheetContentRef = useRef<HTMLDivElement | null>(null);
   const draftSectionRef = useRef<HTMLElement | null>(null);
-
   const router = useRouter();
 
+  const isDraftSaved =
+    !!savedDraft &&
+    !!draftReply &&
+    savedDraft.body === draftReply.body &&
+    savedDraft.subject === draftReply.subject;
+
   async function handleAcceptDraft() {
-    if (!selectedEnquiry || !draftReply?.replyRecommended || !draftReply.body) {
-      return;
-    }
+    if (!draftReply?.replyRecommended || !draftReply.body) return;
 
     setDraftAcceptError(null);
     setIsAcceptingDraft(true);
 
     try {
-      const res = await fetch(
-        `/api/enquiries/${selectedEnquiry.id}/draft/accept`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            subject: draftReply.subject,
-            body: draftReply.body,
-            method: draftReply.method,
-          }),
-        },
-      );
+      const res = await fetch(`/api/enquiries/${enquiry.id}/draft/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: draftReply.subject,
+          body: draftReply.body,
+          method: draftReply.method,
+        }),
+      });
 
       if (!res.ok) {
-        throw new Error("Failed to accept draft");
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Failed to accept draft");
       }
 
-      toast.success("Draft saved successfully");
+      toast.success("Draft saved");
       router.refresh();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong";
-
       setDraftAcceptError(message);
       toast.error("Failed to save draft");
     } finally {
@@ -85,14 +66,7 @@ export function useEnquiryDetailSheet({
   }
 
   function handleDraftBodyChange(body: string) {
-    setDraftReply((current) =>
-      current
-        ? {
-            ...current,
-            body,
-          }
-        : current,
-    );
+    setDraftReply((current) => (current ? { ...current, body } : current));
   }
 
   function handleDraftGenerated(draft: DraftResponse) {
@@ -104,53 +78,24 @@ export function useEnquiryDetailSheet({
     setIsDraftExpanded((current) => !current);
   }
 
-  function resetDraftState() {
-    setDraftReply(null);
-    setIsDraftExpanded(false);
-    setIsAcceptingDraft(false);
-    setDraftAcceptError(null);
-  }
-
-  // Scroll draft section into view when expanded
   useEffect(() => {
-    const container = sheetContentRef.current;
-    const draftSection = draftSectionRef.current;
-
-    if (!container || !draftSection) return;
-
-    requestAnimationFrame(() => {
-      const containerRect = container.getBoundingClientRect();
-      const sectionRect = draftSection.getBoundingClientRect();
-
-      const offsetTop =
-        sectionRect.top - containerRect.top + container.scrollTop - 16;
-
-      container.scrollTo({
-        top: offsetTop,
-        behavior: "smooth",
-      });
+    if (!isDraftExpanded) return;
+    draftSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
     });
   }, [isDraftExpanded]);
 
-  useEffect(() => {
-    setDraftReply(null);
-    setIsDraftExpanded(false);
-    setIsAcceptingDraft(false);
-    setDraftAcceptError(null);
-  }, [selectedEnquiry?.id]);
-
   return {
     draftReply,
+    isDraftSaved,
     isDraftExpanded,
     isAcceptingDraft,
     draftAcceptError,
-    sheetContentRef,
     draftSectionRef,
-    setDraftReply,
     handleAcceptDraft,
     handleDraftBodyChange,
     handleDraftGenerated,
     toggleDraftExpanded,
-    resetDraftState,
   };
 }

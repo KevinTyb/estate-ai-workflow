@@ -5,10 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import { DraftButton } from "@/components/draftButton";
-import { DraftResponse } from "./draftTypes";
+import type { Ref } from "react";
+import { DetailItem } from "./detailItem";
+import type { DraftResponse } from "./draftTypes";
 
 type DraftSectionProps = {
+  ref?: Ref<HTMLElement>;
   enquiryId: string;
+  isDraftSaved: boolean;
   hasTriageResult: boolean;
   draftReply: DraftResponse | null;
   isDraftExpanded: boolean;
@@ -21,28 +25,10 @@ type DraftSectionProps = {
   onAccept: () => void | Promise<void>;
 };
 
-function DetailItem({
-  label,
-  value,
-  emptyLabel = "Not Available",
-}: {
-  label: string;
-  value: string | null | undefined;
-  emptyLabel?: string;
-}) {
-  const hasValue = value != null && value !== "";
-  return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <p className="text-sm text-slate-900">{hasValue ? value : emptyLabel}</p>
-    </div>
-  );
-}
-
 export function DraftSection({
+  ref,
   enquiryId,
+  isDraftSaved,
   hasTriageResult,
   draftReply,
   isDraftExpanded,
@@ -55,9 +41,22 @@ export function DraftSection({
   onAccept,
 }: DraftSectionProps) {
   return (
-    <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+    <section
+      ref={ref}
+      className="scroll-mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4"
+    >
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-900">Draft reply</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-900">Draft reply</h3>
+          {isDraftSaved ? (
+            <Badge
+              variant="outline"
+              className="border-emerald-200 bg-emerald-50 text-emerald-700"
+            >
+              Saved
+            </Badge>
+          ) : null}
+        </div>
 
         <div className="flex items-center gap-2">
           {draftReply?.replyRecommended ? (
@@ -73,6 +72,7 @@ export function DraftSection({
 
           <DraftButton
             enquiryId={enquiryId}
+            hasDraft={!!draftReply}
             disabled={!hasTriageResult}
             onDraftGenerated={onDraftGenerated}
           />
@@ -128,6 +128,7 @@ export function DraftSection({
                       month: "short",
                       hour: "2-digit",
                       minute: "2-digit",
+                      timeZone: "Europe/London",
                     })}
                   </Badge>
                 ))}
@@ -149,9 +150,13 @@ export function DraftSection({
             <Button
               type="button"
               onClick={() => void onAccept()}
-              disabled={isAcceptingDraft}
+              disabled={isAcceptingDraft || isDraftSaved}
             >
-              {isAcceptingDraft ? "Accepting..." : "Accept"}
+              {isAcceptingDraft
+                ? "Saving..."
+                : isDraftSaved
+                  ? "Saved"
+                  : "Accept"}
             </Button>
           </div>
 

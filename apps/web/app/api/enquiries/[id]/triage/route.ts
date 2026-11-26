@@ -1,5 +1,4 @@
-import { prisma } from "@/lib/prisma";
-import { runRuleBasedTriage } from "@/lib/triage";
+import { triageEnquiry } from "@/lib/triage/triageEnquiry";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -8,37 +7,15 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    const result = await triageEnquiry(id);
 
-    const enquiry = await prisma.enquiry.findUnique({
-      where: { id },
-    });
-    if (!enquiry) {
+    if (!result) {
       return NextResponse.json({ error: "Enquiry not found" }, { status: 404 });
     }
 
-    const triage = runRuleBasedTriage(enquiry.rawText);
-
-    const savedResult = await prisma.triageResult.upsert({
-      where: { enquiryId: enquiry.id },
-      update: {
-        intent: triage.intent,
-        confidence: triage.confidence,
-        entities: triage.entities,
-        method: triage.method,
-      },
-      create: {
-        enquiryId: enquiry.id,
-        intent: triage.intent,
-        confidence: triage.confidence,
-        entities: triage.entities,
-        method: triage.method,
-      },
-    });
-
-    return NextResponse.json(savedResult);
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Triage route failed:", error);
-
     return NextResponse.json(
       { error: "Failed to triage enquiry" },
       { status: 500 },

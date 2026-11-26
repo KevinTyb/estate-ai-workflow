@@ -12,33 +12,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { EnquiryDetailSheet } from "./enquiryDetailSheet";
 import { formatConfidence, sourceLabel } from "@/lib/enquiries/helper";
-import { DraftResponse } from "./draftTypes";
-
-type EnquiryWithTriage = {
-  id: string;
-  contactName: string | null;
-  email: string | null;
-  source: string;
-  status: string;
-  intent: string | null;
-  propertyRef: string | null;
-  rawText: string;
-  createdAt: Date;
-  triageResult: {
-    id: string;
-    intent: string | null;
-    confidence: number | null;
-    entities: unknown;
-    method: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null;
-};
+import type { InboxEnquiry } from "@/lib/enquiries/types";
+import { EnquiryDetailSheet } from "./enquiryDetailSheet";
 
 type EnquiryInboxTableProps = {
-  enquiries: EnquiryWithTriage[];
+  enquiries: InboxEnquiry[];
 };
 
 function badgeClasses(value: string | null) {
@@ -69,10 +48,11 @@ function badgeClasses(value: string | null) {
 }
 
 export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
-  const [selectedEnquiry, setSelectedEnquiry] =
-    useState<EnquiryWithTriage | null>(null);
-
-  const [, setDraftReply] = useState<DraftResponse | null>(null);
+  // Track the id, not the object, so the open panel shows fresh data after
+  // router.refresh() re-renders the inbox with updated enquiries.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedEnquiry =
+    enquiries.find((enquiry) => enquiry.id === selectedId) ?? null;
 
   if (enquiries.length === 0) {
     return (
@@ -108,12 +88,9 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
               return (
                 <TableRow
                   key={enquiry.id}
-                  onClick={() => {
-                    setSelectedEnquiry(enquiry);
-                    setDraftReply(null);
-                  }}
+                  onClick={() => setSelectedId(enquiry.id)}
                   className={`cursor-pointer align-top transition-colors hover:bg-slate-50 ${
-                    selectedEnquiry?.id === enquiry.id
+                    selectedId === enquiry.id
                       ? "bg-sky-50/70 ring-1 ring-inset ring-sky-200"
                       : ""
                   }`}
@@ -166,7 +143,7 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
                   </TableCell>
 
                   <TableCell className="px-5 py-4 text-sm text-slate-700">
-                    {enquiry.propertyRef ?? "—"}
+                    {enquiry.property?.ref ?? enquiry.propertyRef ?? "—"}
                   </TableCell>
 
                   <TableCell className="max-w-sm px-5 py-4 text-slate-700">
@@ -191,9 +168,7 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
       <EnquiryDetailSheet
         selectedEnquiry={selectedEnquiry}
         onOpenChange={(open) => {
-          if (!open) {
-            setSelectedEnquiry(null);
-          }
+          if (!open) setSelectedId(null);
         }}
       />
     </>
