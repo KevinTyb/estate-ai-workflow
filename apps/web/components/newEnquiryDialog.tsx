@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,8 @@ export function NewEnquiryDialog() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, startTransition] = useTransition();
   const busy = isSaving || isRefreshing;
+  const idPrefix = useId();
+  const fieldId = (field: keyof typeof EMPTY) => `${idPrefix}-${field}`;
 
   const update =
     (field: keyof typeof EMPTY) =>
@@ -96,39 +98,51 @@ export function NewEnquiryDialog() {
             </DialogHeader>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1 text-sm font-medium text-slate-700 sm:col-span-2">
-                Name
+              <div className="space-y-1 text-sm font-medium text-slate-700 sm:col-span-2">
+                <label htmlFor={fieldId("contactName")} className="block">
+                  Name
+                </label>
                 <input
+                  id={fieldId("contactName")}
                   required
                   value={form.contactName}
                   onChange={update("contactName")}
                   autoComplete="off"
                   className={fieldClasses}
                 />
-              </label>
-              <label className="space-y-1 text-sm font-medium text-slate-700">
-                Email
+              </div>
+              <div className="space-y-1 text-sm font-medium text-slate-700">
+                <label htmlFor={fieldId("email")} className="block">
+                  Email
+                </label>
                 <input
+                  id={fieldId("email")}
                   type="email"
                   value={form.email}
                   onChange={update("email")}
                   autoComplete="off"
                   className={fieldClasses}
                 />
-              </label>
-              <label className="space-y-1 text-sm font-medium text-slate-700">
-                Phone
+              </div>
+              <div className="space-y-1 text-sm font-medium text-slate-700">
+                <label htmlFor={fieldId("phone")} className="block">
+                  Phone
+                </label>
                 <input
+                  id={fieldId("phone")}
                   type="tel"
                   value={form.phone}
                   onChange={update("phone")}
                   autoComplete="off"
                   className={fieldClasses}
                 />
-              </label>
-              <label className="space-y-1 text-sm font-medium text-slate-700 sm:col-span-2">
-                Received via
+              </div>
+              <div className="space-y-1 text-sm font-medium text-slate-700 sm:col-span-2">
+                <label htmlFor={fieldId("source")} className="block">
+                  Received via
+                </label>
                 <select
+                  id={fieldId("source")}
                   value={form.source}
                   onChange={update("source")}
                   className={fieldClasses}
@@ -137,17 +151,20 @@ export function NewEnquiryDialog() {
                   <option value="email">Email</option>
                   <option value="phone">Phone</option>
                 </select>
-              </label>
-              <label className="space-y-1 text-sm font-medium text-slate-700 sm:col-span-2">
-                Message
+              </div>
+              <div className="space-y-1 text-sm font-medium text-slate-700 sm:col-span-2">
+                <label htmlFor={fieldId("rawText")} className="block">
+                  Message
+                </label>
                 <Textarea
+                  id={fieldId("rawText")}
                   required
                   rows={5}
                   value={form.rawText}
                   onChange={update("rawText")}
                   placeholder="e.g. Hi, could I view 12A Baker Street on Friday?"
                 />
-              </label>
+              </div>
             </div>
 
             {error ? (
