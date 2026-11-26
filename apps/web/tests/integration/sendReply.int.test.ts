@@ -24,6 +24,16 @@ async function approveDraft(enquiryId: string, body = "Hi Sam, thanks!") {
   });
 }
 
+/** Shaped like nodemailer's errors. */
+const connectionRefused = () =>
+  Object.assign(new Error("connect ECONNREFUSED"), {
+    code: "ECONNECTION",
+    command: "CONN",
+    syscall: "connect",
+  });
+const timedOut = () =>
+  Object.assign(new Error("Timeout"), { code: "ETIMEDOUT", command: "CONN" });
+
 async function codeOf(promise: Promise<unknown>) {
   return promise.then(
     () => null,
@@ -104,13 +114,13 @@ describe("sendApprovedReply", () => {
     const enquiry = await createEnquiry();
     await approveDraft(enquiry.id);
     const transport = fakeTransport();
-    transport.send.mockRejectedValueOnce(new Error("SMTP down"));
+    transport.send.mockRejectedValueOnce(connectionRefused());
 
     await expect(sendApprovedReply(enquiry.id, { transport })).rejects.toThrow(
-      "SMTP down",
+      "connect ECONNREFUSED",
     );
     expect(await prisma.outboundEmail.findMany()).toMatchObject([
-      { status: "FAILED", failureReason: "SMTP down" },
+      { status: "FAILED", failureReason: "connect ECONNREFUSED" },
     ]);
     expect(
       await prisma.enquiry.findUnique({ where: { id: enquiry.id } }),
@@ -246,13 +256,192 @@ describe("sendApprovedReply", () => {
     const enquiry = await createEnquiry();
     await approveDraft(enquiry.id);
     const transport = fakeTransport();
-    transport.send.mockRejectedValueOnce(new Error("SMTP down"));
+    transport.send.mockRejectedValueOnce(connectionRefused());
 
     await codeOf(sendApprovedReply(enquiry.id, { transport }));
     await sendApprovedReply(enquiry.id, { transport });
 
     const [first, second] = transport.send.mock.calls.map((c) => c[0]);
     expect(second.messageId).toBe(first.messageId);
+  });
+
+  it("treats an uncertain transport error as unknown, not retryable", async () => {
+    const enquiry = await createEnquiry();
+    await approveDraft(enquiry.id);
+    const transport = fakeTransport();
+    transport.send.mockRejectedValueOnce(timedOut());
+
+    expect(await codeOf(sendApprovedReply(enquiry.id, { transport }))).toBe(
+      "SEND_OUTCOME_UNKNOWN",
+    );
+    expect(await prisma.outboundEmail.findMany()).toMatchObject([
+      { status: "UNKNOWN", failureReason: "Timeout" },
+    ]);
+
+    expect(await codeOf(sendApprovedReply(enquiry.id, { transport }))).toBe(
+      "SEND_OUTCOME_UNKNOWN",
+    );
+    expect(transport.send).toHaveBeenCalledTimes(1);
+
+    await sendApprovedReply(enquiry.id, { transport, confirmResend: true });
+    expect(transport.send).toHaveBeenCalledTimes(2);
+    expect(await prisma.outboundEmail.findMany()).toMatchObject([
+      { status: "SENT" },
+    ]);
+  });
+
+  it("does not let mark-as-sent overwrite a resend that reclaimed the attempt", async () => {
+    const enquiry = await createEnquiry();
+    await approveDraft(enquiry.id);
+    const { later } = await interruptedClaim(enquiry.id);
+
+    // Open the window: after markReplySent has read the claim, a resend
+    // reclaims it before markReplySent writes.
+    const delegate = prisma.outboundEmail;
+    const original = delegate.findUnique;
+    delegate.findUnique = ((args: Parameters<typeof original>[0]) =>
+      original.call(delegate, args).then(async (claim) => {
+        // previewReply selects only a few fields; markReplySent reads the
+        // whole row, which is the read we want to race.
+        if (claim && "transport" in claim) {
+          await prisma.outboundEmail.update({
+            where: { id: claim.id },
+            data: { status: "SENDING", claimedAt: later },
+          });
+        }
+        return claim;
+      })) as unknown as typeof original;
+
+    try {
+      expect(await codeOf(markReplySent(enquiry.id, later))).toBe(
+        "SEND_IN_PROGRESS",
+      );
+    } finally {
+      delegate.findUnique = original;
+    }
+
+    expect(await prisma.outboundEmail.findMany()).toMatchObject([
+      { status: "SENDING", claimedAt: later },
+    ]);
+    expect(await prisma.enquiryEvent.count()).toBe(0);
+  });
+
+  it("settles a race between mark-as-sent and send-again exactly once", async () => {
+    const enquiry = await createEnquiry();
+    await approveDraft(enquiry.id);
+    const { later } = await interruptedClaim(enquiry.id);
+    // Sweep the stale claim to UNKNOWN first.
+    await codeOf(
+      sendApprovedReply(enquiry.id, { transport: fakeTransport(), now: later }),
+    );
+
+    const transport = fakeTransport();
+    const results = await Promise.all([
+      codeOf(markReplySent(enquiry.id, later)),
+      codeOf(
+        sendApprovedReply(enquiry.id, {
+          transport,
+          now: later,
+          confirmResend: true,
+        }),
+      ),
+    ]);
+
+    expect(results.filter((code) => code === null)).toHaveLength(1);
+    expect(await prisma.outboundEmail.findMany()).toMatchObject([
+      { status: "SENT" },
+    ]);
+    expect(
+      await prisma.enquiryEvent.count({ where: { type: "EMAIL_SENT" } }),
+    ).toBe(1);
+    // A resend only happened if it won.
+    expect(transport.send).toHaveBeenCalledTimes(results[1] === null ? 1 : 0);
+  });
+
+  it("does not record a late success twice once an agent resolved the attempt", async () => {
+    const enquiry = await createEnquiry();
+    await approveDraft(enquiry.id);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const transport = fakeTransport();
+    transport.send.mockImplementation(async () => {
+      await gate;
+      return { messageId: "m-late" };
+    });
+
+    const slowSend = sendApprovedReply(enquiry.id, { transport });
+    await vi.waitFor(() => expect(transport.send).toHaveBeenCalled());
+    const claim = await prisma.outboundEmail.findFirstOrThrow();
+    const later = new Date(claim.claimedAt.getTime() + STALE_CLAIM_MS + 1000);
+
+    await markReplySent(enquiry.id, later);
+    release();
+    await slowSend;
+
+    expect(
+      await prisma.enquiryEvent.count({ where: { type: "EMAIL_SENT" } }),
+    ).toBe(1);
+    expect(await prisma.outboundEmail.findMany()).toMatchObject([
+      { status: "SENT" },
+    ]);
+  });
+
+  it("reports a superseded attempt instead of success when a resend is still running", async () => {
+    const enquiry = await createEnquiry();
+    await approveDraft(enquiry.id);
+
+    // 1. The original attempt hangs inside the transport.
+    let releaseOriginal!: () => void;
+    const originalGate = new Promise<void>((r) => (releaseOriginal = r));
+    const original = fakeTransport();
+    original.send.mockImplementation(async () => {
+      await originalGate;
+      return { messageId: "m-original" };
+    });
+    const originalSend = codeOf(
+      sendApprovedReply(enquiry.id, { transport: original }),
+    );
+    await vi.waitFor(() => expect(original.send).toHaveBeenCalled());
+    const claim = await prisma.outboundEmail.findFirstOrThrow();
+    const later = new Date(claim.claimedAt.getTime() + STALE_CLAIM_MS + 1000);
+
+    // 2. Past the timeout an agent confirms a resend, which also hangs.
+    expect(
+      await codeOf(
+        sendApprovedReply(enquiry.id, {
+          transport: fakeTransport(),
+          now: later,
+        }),
+      ),
+    ).toBe("SEND_OUTCOME_UNKNOWN");
+    let releaseResend!: () => void;
+    const resendGate = new Promise<void>((r) => (releaseResend = r));
+    const resend = fakeTransport();
+    resend.send.mockImplementation(async () => {
+      await resendGate;
+      return { messageId: "m-resend" };
+    });
+    const resendSend = sendApprovedReply(enquiry.id, {
+      transport: resend,
+      now: later,
+      confirmResend: true,
+    });
+    await vi.waitFor(() => expect(resend.send).toHaveBeenCalled());
+
+    // 3-5. The original finally succeeds but must not report success.
+    releaseOriginal();
+    expect(await originalSend).toBe("SEND_SUPERSEDED");
+    expect(await prisma.outboundEmail.findMany()).toMatchObject([
+      { status: "SENDING", claimedAt: later },
+    ]);
+    expect(await prisma.enquiryEvent.count()).toBe(0);
+
+    // The newer attempt settles the reply.
+    releaseResend();
+    await expect(resendSend).resolves.toMatchObject({ status: "SENT" });
+    expect(
+      await prisma.enquiryEvent.count({ where: { type: "EMAIL_SENT" } }),
+    ).toBe(1);
   });
 
   it("allows another reply once the draft is edited and approved again", async () => {
