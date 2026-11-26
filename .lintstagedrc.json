@@ -1,9 +1,7 @@
 {
-  "apps/web/**/*.{js,jsx,ts,tsx}": [
-    "bash -lc 'cd apps/web && eslint --fix \"$@\"' --"
+  "apps/web/**/*.{js,jsx,ts,tsx,mjs}": [
+    "pnpm --filter web exec eslint --fix --max-warnings=0",
+    "prettier --write"
   ],
-  "apps/web/**/*.{json,md,css,scss}": [
-    "bash -lc 'cd apps/web && prettier --write \"$@\"' --"
-  ],
-  "*.{json,md}": ["prettier --write"]
+  "*.{json,md,css,yml,yaml}": ["prettier --write"]
 }
