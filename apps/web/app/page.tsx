@@ -19,57 +19,63 @@ export default async function Home() {
     include: inboxEnquiryInclude,
   });
 
-  const totalEnquiries = enquiries.length;
-  const pendingCount = enquiries.filter((e) => e.status === "PENDING").length;
-  const viewingCount = enquiries.filter(
-    (e) => e.triageResult?.intent === "VIEWING",
+  const awaitingReply = enquiries.filter(
+    (e) =>
+      (e.status === "PENDING" || e.status === "DRAFTED") &&
+      e.triageResult?.intent !== "SPAM",
   ).length;
+  const needsReview = enquiries.filter(
+    (e) => e.triageResult?.needsReview,
+  ).length;
+  const viewingsBooked = enquiries.filter((e) => e.bookings.length > 0).length;
+
+  const stats = [
+    { label: "Total enquiries", value: enquiries.length },
+    {
+      label: "Awaiting reply",
+      value: awaitingReply,
+      hint: "Pending or drafted, excluding spam",
+    },
+    {
+      label: "Needs review",
+      value: needsReview,
+      hint: "Low-confidence or disputed triage",
+    },
+    { label: "Viewings booked", value: viewingsBooked },
+  ];
 
   return (
-    <main className="px-6 py-8">
+    <main className="px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-7xl space-y-6">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-            Estate AI Workflow
+            Enquiry inbox
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Seeded enquiry inbox for the MVP.
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+            Triage incoming enquiries, review suggested replies and book
+            viewings. Nothing is sent or booked until an agent approves it.
           </p>
         </div>
 
-        <section className="grid gap-4 sm:grid-cols-3">
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardDescription>Total enquiries</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold tracking-tight text-slate-900">
-                {totalEnquiries}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardDescription>Pending</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold tracking-tight text-slate-900">
-                {pendingCount}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardDescription>Viewing requests</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold tracking-tight text-slate-900">
-                {viewingCount}
-              </p>
-            </CardContent>
-          </Card>
+        <section
+          aria-label="Inbox summary"
+          className="grid grid-cols-2 gap-4 lg:grid-cols-4"
+        >
+          {stats.map((stat) => (
+            <Card key={stat.label} className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-2">
+                <CardDescription>{stat.label}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold tracking-tight text-slate-900">
+                  {stat.value}
+                </p>
+                {stat.hint ? (
+                  <p className="mt-1 text-xs text-slate-500">{stat.hint}</p>
+                ) : null}
+              </CardContent>
+            </Card>
+          ))}
         </section>
 
         <Card className="overflow-hidden rounded-2xl shadow-sm">
@@ -78,7 +84,8 @@ export default async function Home() {
               Inbox
             </CardTitle>
             <CardDescription>
-              Review and triage incoming enquiries.
+              Select an enquiry to see its triage, draft reply, sending and
+              booking.
             </CardDescription>
           </CardHeader>
 
