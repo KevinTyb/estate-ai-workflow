@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
@@ -7,43 +9,19 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-
+import { useEnquiryDetailSheet } from "@/hooks/useEnquiryDetailSheet";
 import {
   formatConfidence,
   getEntityEntries,
-  getEntityPills,
   sourceLabel,
 } from "@/lib/enquiries/helper";
+import type { InboxEnquiry } from "@/lib/enquiries/types";
+import { DetailItem } from "./detailItem";
 import { DetailSection } from "./detailSection";
-
-import { toast } from "sonner";
 import { DraftSection } from "./draftSection";
-import { useEnquiryDetailSheet } from "@/hooks/useEnquiryDetailSheet";
-import { useMemo } from "react";
-
-type EnquiryWithTriage = {
-  id: string;
-  contactName: string | null;
-  email: string | null;
-  source: string;
-  status: string;
-  intent: string | null;
-  propertyRef: string | null;
-  rawText: string;
-  createdAt: Date;
-  triageResult: {
-    id: string;
-    intent: string | null;
-    confidence: number | null;
-    entities: unknown;
-    method: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null;
-};
 
 type EnquiryDetailSheetProps = {
-  selectedEnquiry: EnquiryWithTriage | null;
+  selectedEnquiry: InboxEnquiry | null;
   onOpenChange: (open: boolean) => void;
 };
 
@@ -54,32 +32,12 @@ function formatLabel(key: string) {
     .trim();
 }
 
-function DetailItem({
-  label,
-  value,
-  emptyLabel = "Not Available",
-}: {
-  label: string;
-  value: string | null | undefined;
-  emptyLabel?: string;
-}) {
-  const hasValue = value != null && value !== "";
-  return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <p className="text-sm text-slate-900">{hasValue ? value : emptyLabel}</p>
-    </div>
-  );
-}
-
 function formatDateTime(value: Date | null | undefined) {
   if (!value) return "Not triaged yet";
-
   return new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: "Europe/London",
   }).format(value);
 }
 
@@ -87,168 +45,151 @@ export function EnquiryDetailSheet({
   selectedEnquiry,
   onOpenChange,
 }: EnquiryDetailSheetProps) {
+  return (
+    <Sheet open={!!selectedEnquiry} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full overflow-y-auto p-2 sm:max-w-xl">
+        {selectedEnquiry ? (
+          // Keyed so per-enquiry state (the draft) resets when switching.
+          <EnquiryDetail key={selectedEnquiry.id} enquiry={selectedEnquiry} />
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
   const {
     draftReply,
+    isDraftSaved,
     isDraftExpanded,
     isAcceptingDraft,
     draftAcceptError,
-    sheetContentRef,
-
+    draftSectionRef,
     handleAcceptDraft,
     handleDraftBodyChange,
     handleDraftGenerated,
     toggleDraftExpanded,
-    resetDraftState,
-  } = useEnquiryDetailSheet({ selectedEnquiry });
-  const selectedEntityEntries = useMemo(() => {
-    return getEntityEntries(selectedEnquiry?.triageResult?.entities);
-  }, [selectedEnquiry]);
+  } = useEnquiryDetailSheet(enquiry);
 
-  const selectedEntityPills = useMemo(() => {
-    return getEntityPills(selectedEnquiry?.triageResult?.entities);
-  }, [selectedEnquiry]);
+  const entityEntries = useMemo(
+    () => getEntityEntries(enquiry.triageResult?.entities),
+    [enquiry.triageResult?.entities],
+  );
 
-  const resolvedIntent =
-    selectedEnquiry?.triageResult?.intent ?? selectedEnquiry?.intent ?? null;
+  const resolvedIntent = enquiry.triageResult?.intent ?? enquiry.intent;
+  const propertyLabel = enquiry.property
+    ? `${enquiry.property.ref} · ${enquiry.property.address}`
+    : enquiry.propertyRef;
+
   return (
-    <Sheet
-      open={!!selectedEnquiry}
-      onOpenChange={(open: boolean) => {
-        if (!open) {
-          resetDraftState();
-        }
-        onOpenChange(open);
-      }}
-    >
-      <SheetContent
-        ref={sheetContentRef}
-        className="w-full overflow-y-auto p-2 sm:max-w-xl"
+    <div className="space-y-6">
+      <SheetHeader className="text-left">
+        <SheetTitle>Enquiry details</SheetTitle>
+        <SheetDescription>
+          Review the full enquiry and triage result.
+        </SheetDescription>
+      </SheetHeader>
+
+      <DetailSection title="Enquiry" defaultOpen>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DetailItem
+            label="Contact"
+            value={enquiry.contactName}
+            emptyLabel="Not provided"
+          />
+          <DetailItem
+            label="Email"
+            value={enquiry.email}
+            emptyLabel="No email"
+          />
+          <DetailItem label="Source" value={sourceLabel(enquiry.source)} />
+          <DetailItem label="Status" value={enquiry.status} />
+          <DetailItem
+            label="Property"
+            value={propertyLabel}
+            emptyLabel="Not linked"
+          />
+          <DetailItem
+            label="Intent"
+            value={resolvedIntent}
+            emptyLabel="Not triaged yet"
+          />
+        </div>
+      </DetailSection>
+
+      <DetailSection title="Raw message" defaultOpen>
+        <div className="whitespace-pre-wrap rounded-lg p-3 text-sm leading-6 text-slate-700">
+          {enquiry.rawText}
+        </div>
+      </DetailSection>
+
+      <DetailSection title="Triage result" defaultOpen>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DetailItem
+            label="Classified intent"
+            value={enquiry.triageResult?.intent}
+            emptyLabel="Not triaged yet"
+          />
+          <DetailItem
+            label="Confidence"
+            value={formatConfidence(enquiry.triageResult?.confidence)}
+            emptyLabel="Not triaged yet"
+          />
+          <DetailItem
+            label="Method"
+            value={enquiry.triageResult?.method}
+            emptyLabel="Not triaged yet"
+          />
+          <DetailItem
+            label="Triaged at"
+            value={formatDateTime(enquiry.triageResult?.updatedAt)}
+          />
+        </div>
+      </DetailSection>
+
+      <DetailSection
+        title="Extracted entities"
+        defaultOpen={entityEntries.length > 0}
       >
-        {selectedEnquiry ? (
-          <div className="space-y-6">
-            <SheetHeader className="text-left">
-              <SheetTitle>Enquiry details</SheetTitle>
-              <SheetDescription>
-                Review the full enquiry and triage result.
-              </SheetDescription>
-            </SheetHeader>
-
-            <DetailSection title="Enquiry" defaultOpen>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <DetailItem
-                  label="Contact"
-                  value={selectedEnquiry.contactName}
-                  emptyLabel="Not Provided"
-                />
-                <DetailItem
-                  label="Email"
-                  value={selectedEnquiry.email}
-                  emptyLabel="No Email"
-                />
-                <DetailItem
-                  label="Source"
-                  value={sourceLabel(selectedEnquiry.source)}
-                  emptyLabel="Not Provided"
-                />
-                <DetailItem label="Status" value={selectedEnquiry.status} />
-                <DetailItem
-                  label="Property ref"
-                  value={selectedEnquiry.propertyRef}
-                  emptyLabel="Not Provided"
-                />
-                <DetailItem
-                  label="Intent"
-                  value={resolvedIntent}
-                  emptyLabel="Not Provided"
-                />
-              </div>
-            </DetailSection>
-
-            <DetailSection title="Raw message" defaultOpen>
-              <div className="rounded-lg p-3 text-sm leading-6 text-slate-700">
-                {selectedEnquiry.rawText}
-              </div>
-            </DetailSection>
-
-            <DetailSection title="Triage result" defaultOpen>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <DetailItem
-                  label="Classified intent"
-                  value={resolvedIntent ?? "Not triaged yet"}
-                />
-                <DetailItem
-                  label="Confidence"
-                  value={
-                    formatConfidence(
-                      selectedEnquiry.triageResult?.confidence,
-                    ) ?? "Not triaged yet"
-                  }
-                />
-                <DetailItem
-                  label="Method"
-                  value={
-                    selectedEnquiry.triageResult?.method ?? "Not triaged yet"
-                  }
-                />
-                <DetailItem
-                  label="Triaged at"
-                  value={formatDateTime(
-                    selectedEnquiry.triageResult?.updatedAt,
-                  )}
-                />
-              </div>
-            </DetailSection>
-
-            <DetailSection
-              title="Extracted entities"
-              defaultOpen={selectedEntityPills.length > 0}
-            >
-              {selectedEntityPills.length > 0 ? (
-                <>
-                  <div className="space-y-3 pt-2">
-                    {selectedEntityEntries.map((entry) => (
-                      <div
-                        key={entry.key}
-                        className="rounded-lg border border-slate-200 px-3 py-2"
-                      >
-                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                          {formatLabel(entry.key)}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-900">
-                          {entry.value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-slate-500">
-                  No extracted entities yet.
+        {entityEntries.length > 0 ? (
+          <div className="space-y-3 pt-2">
+            {entityEntries.map((entry) => (
+              <div
+                key={entry.key}
+                className="rounded-lg border border-slate-200 px-3 py-2"
+              >
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {formatLabel(entry.key)}
                 </p>
-              )}
-            </DetailSection>
-
-            <DraftSection
-              enquiryId={selectedEnquiry.id}
-              hasTriageResult={!!selectedEnquiry.triageResult}
-              draftReply={draftReply}
-              isDraftExpanded={isDraftExpanded}
-              isAcceptingDraft={isAcceptingDraft}
-              draftAcceptError={draftAcceptError}
-              onToggleExpanded={toggleDraftExpanded}
-              onDraftGenerated={handleDraftGenerated}
-              onDraftBodyChange={handleDraftBodyChange}
-              onCopy={() => {
-                if (draftReply?.body) {
-                  void navigator.clipboard.writeText(draftReply.body);
-                  toast.success("Draft copied to clipboard");
-                }
-              }}
-              onAccept={handleAcceptDraft}
-            />
+                <p className="mt-1 text-sm text-slate-900">{entry.value}</p>
+              </div>
+            ))}
           </div>
-        ) : null}
-      </SheetContent>
-    </Sheet>
+        ) : (
+          <p className="text-sm text-slate-500">No extracted entities yet.</p>
+        )}
+      </DetailSection>
+
+      <DraftSection
+        ref={draftSectionRef}
+        enquiryId={enquiry.id}
+        hasTriageResult={!!enquiry.triageResult}
+        draftReply={draftReply}
+        isDraftSaved={isDraftSaved}
+        isDraftExpanded={isDraftExpanded}
+        isAcceptingDraft={isAcceptingDraft}
+        draftAcceptError={draftAcceptError}
+        onToggleExpanded={toggleDraftExpanded}
+        onDraftGenerated={handleDraftGenerated}
+        onDraftBodyChange={handleDraftBodyChange}
+        onCopy={() => {
+          if (draftReply?.body) {
+            void navigator.clipboard.writeText(draftReply.body);
+            toast.success("Draft copied to clipboard");
+          }
+        }}
+        onAccept={handleAcceptDraft}
+      />
+    </div>
   );
 }

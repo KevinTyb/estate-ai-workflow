@@ -12,3 +12,21 @@ export type DraftResponse = {
   replyRecommended: boolean;
   slots: DraftSlot[];
 };
+
+type SavedDraft = {
+  subject: string | null;
+  body: string;
+  method: string;
+};
+
+/** Rebuild the editable draft from the copy saved when it was approved. */
+export function draftFromSaved(saved: SavedDraft | null): DraftResponse | null {
+  if (!saved) return null;
+  return {
+    subject: saved.subject,
+    body: saved.body,
+    method: saved.method,
+    replyRecommended: true,
+    slots: [],
+  };
+}
