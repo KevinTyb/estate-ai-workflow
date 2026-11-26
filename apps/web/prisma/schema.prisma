@@ -119,19 +119,38 @@ model Booking {
 
 /// A reply sent to a customer. With the default "outbox" transport nothing
 /// leaves the system: the message is only recorded here.
+///
+/// The row is written as SENDING before the transport is called, so a
+/// concurrent or repeated request for the same approved draft is refused
+/// instead of sending the reply twice.
 model OutboundEmail {
-  id        String  @id @default(cuid())
+  id        String              @id @default(cuid())
   enquiryId String
-  enquiry   Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  enquiry   Enquiry             @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
   toEmail   String
   subject   String
   body      String
   transport String //"outbox" | "smtp"
   messageId String?
+  status    OutboundEmailStatus @default(SENT)
 
+  /// One send per approved draft version. Unique, so two requests cannot
+  /// both claim the same draft.
+  idempotencyKey String?  @unique
+  /// When the current attempt started; a stale SENDING claim can be retried.
+  claimedAt      DateTime @default(now())
+  failureReason  String?
+
+  /// Time the transport accepted the message (claim time until then).
   sentAt DateTime @default(now())
 
   @@index([enquiryId, sentAt])
+}
+
+enum OutboundEmailStatus {
+  SENDING
+  SENT
+  FAILED
 }
 
 /// Append-only audit trail of workflow actions; analytics are computed

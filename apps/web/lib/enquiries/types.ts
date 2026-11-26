@@ -11,6 +11,7 @@ export const inboxEnquiryInclude = {
     take: 1,
   },
   outboundEmails: {
+    where: { status: "SENT" },
     orderBy: { sentAt: "desc" },
     select: {
       id: true,
