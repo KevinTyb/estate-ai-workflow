@@ -13,8 +13,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { apiFetch } from "@/lib/api/client";
+import { ApiError, apiFetch } from "@/lib/api/client";
+import { isOutcomeUnknown, replyIdempotencyKey } from "@/lib/email/sendState";
 import type { InboxEnquiry } from "@/lib/enquiries/types";
+import { TONES } from "@/lib/ui/tones";
+import { cn } from "@/lib/utils";
 import { DetailSection } from "./detailSection";
 
 type Preview = {
@@ -47,9 +50,18 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const lastSent = enquiry.outboundEmails[0] ?? null;
+  const sentEmails = enquiry.outboundEmails.filter((e) => e.status === "SENT");
+  const lastSent = sentEmails[0] ?? null;
+  const currentKey = enquiry.draftReply
+    ? replyIdempotencyKey(enquiry.draftReply)
+    : null;
+  const interrupted =
+    enquiry.outboundEmails.find(
+      (e) => e.idempotencyKey === currentKey && isOutcomeUnknown(e),
+    ) ?? null;
   const draftAlreadySent =
     !!lastSent &&
     !!enquiry.draftReply &&
@@ -59,7 +71,8 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
     !!enquiry.draftReply &&
     isDraftSaved &&
     !!enquiry.email &&
-    !draftAlreadySent;
+    !draftAlreadySent &&
+    !interrupted;
 
   async function openPreview() {
     setError(null);
@@ -75,11 +88,14 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
     }
   }
 
-  async function send() {
+  async function send(confirmResend = false) {
     setError(null);
     setIsSending(true);
     try {
-      await apiFetch(`/api/enquiries/${enquiry.id}/send`, { method: "POST" });
+      await apiFetch(`/api/enquiries/${enquiry.id}/send`, {
+        method: "POST",
+        body: JSON.stringify({ confirmResend }),
+      });
       toast.success(
         preview?.transport === "smtp"
           ? "Reply sent to the MailDev inbox"
@@ -91,8 +107,31 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
       const message = err instanceof Error ? err.message : "Send failed";
       setError(message);
       toast.error(message);
+      // An interrupted attempt was found: show the agent the choice.
+      if (err instanceof ApiError && err.code === "SEND_OUTCOME_UNKNOWN") {
+        setPreview(null);
+        router.refresh();
+      }
     } finally {
       setIsSending(false);
+    }
+  }
+
+  async function markSent() {
+    setError(null);
+    setIsResolving(true);
+    try {
+      await apiFetch(`/api/enquiries/${enquiry.id}/send/mark-sent`, {
+        method: "POST",
+      });
+      toast.success("Reply marked as sent");
+      router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Update failed";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsResolving(false);
     }
   }
 
@@ -111,18 +150,53 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
       <div className="space-y-3">
         {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
 
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => void openPreview()}
-          disabled={!canPreview || isLoading}
-        >
-          {isLoading ? "Loading preview..." : "Preview and send"}
-        </Button>
+        {interrupted && !draftAlreadySent ? (
+          <div
+            role="status"
+            className={cn("space-y-3 rounded-lg border p-3", TONES.amber)}
+          >
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Send outcome unknown</p>
+              <p className="text-xs leading-5">
+                An attempt to send this reply was interrupted, so it may already
+                have reached {interrupted.toEmail}. Check the sent folder before
+                choosing. It will not be retried automatically.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void markSent()}
+                disabled={isResolving || isSending}
+              >
+                {isResolving ? "Saving..." : "Mark as sent"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void send(true)}
+                disabled={isResolving || isSending}
+              >
+                {isSending ? "Sending..." : "Send again"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void openPreview()}
+            disabled={!canPreview || isLoading}
+          >
+            {isLoading ? "Loading preview..." : "Preview and send"}
+          </Button>
+        )}
 
-        {enquiry.outboundEmails.length > 0 ? (
+        {sentEmails.length > 0 ? (
           <ul className="space-y-2">
-            {enquiry.outboundEmails.map((email) => (
+            {sentEmails.map((email) => (
               <li
                 key={email.id}
                 className="rounded-lg border border-border px-3 py-2 text-sm"
