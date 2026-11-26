@@ -16,9 +16,11 @@
     "db:seed": "prisma db seed",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "eval:triage": "tsx --tsconfig tsconfig.json evals/run-triage-eval.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
     "@estate-ai/schema": "workspace:*",
     "@prisma/client": "^6.19.1",
     "class-variance-authority": "^0.7.1",

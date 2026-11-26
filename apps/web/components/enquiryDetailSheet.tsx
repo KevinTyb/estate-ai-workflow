@@ -13,6 +13,7 @@ import { useEnquiryDetailSheet } from "@/hooks/useEnquiryDetailSheet";
 import {
   formatConfidence,
   getEntityEntries,
+  methodLabel,
   sourceLabel,
 } from "@/lib/enquiries/helper";
 import type { InboxEnquiry } from "@/lib/enquiries/types";
@@ -126,6 +127,18 @@ function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
       </DetailSection>
 
       <DetailSection title="Triage result" defaultOpen>
+        {enquiry.triageResult?.needsReview ? (
+          <div
+            role="status"
+            className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+          >
+            <p className="font-medium">Needs review</p>
+            <p className="mt-0.5 text-xs">
+              {enquiry.triageResult.reviewReason ??
+                "Check this classification before acting on it."}
+            </p>
+          </div>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <DetailItem
             label="Classified intent"
@@ -139,7 +152,7 @@ function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
           />
           <DetailItem
             label="Method"
-            value={enquiry.triageResult?.method}
+            value={methodLabel(enquiry.triageResult?.method)}
             emptyLabel="Not triaged yet"
           />
           <DetailItem

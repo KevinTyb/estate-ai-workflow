@@ -1,4 +1,5 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { AiFailure } from "@/lib/ai/client";
 import { prisma } from "@/lib/prisma";
 import { triageEnquiry } from "@/lib/triage/triageEnquiry";
 import { createEnquiry, createProperty, resetDb } from "./fixtures";
@@ -54,5 +55,31 @@ describe("triageEnquiry", () => {
 
   it("returns null for an unknown enquiry", async () => {
     expect(await triageEnquiry("missing")).toBeNull();
+  });
+
+  it("stores the fallback method and review flag when the AI engine fails", async () => {
+    const enquiry = await createEnquiry({ rawText: "Hello, quick question" });
+    const llm = vi.fn(async () => {
+      throw new AiFailure("api_error", "timeout");
+    });
+
+    await triageEnquiry(enquiry.id, { llm });
+
+    expect(llm).toHaveBeenCalledOnce();
+    expect(
+      await prisma.triageResult.findUnique({
+        where: { enquiryId: enquiry.id },
+      }),
+    ).toMatchObject({
+      method: "rules-fallback",
+      needsReview: true,
+      reviewReason: "Low confidence and the AI engine was unavailable",
+    });
+    const event = await prisma.enquiryEvent.findFirst({
+      where: { type: "TRIAGED" },
+    });
+    expect(event?.metadata).toMatchObject({
+      llm: { failure: "api_error: timeout" },
+    });
   });
 });

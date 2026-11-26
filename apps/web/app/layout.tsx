@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { AppHeader } from "@/components/appHeader";
+import { getAiConfig } from "@/lib/ai/client";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import "./globals.css";
@@ -13,6 +14,11 @@ export const metadata: Metadata = {
     "Triage enquiries, draft replies and book viewings for estate and letting agencies.",
 };
 
+function aiStatusLabel() {
+  const config = getAiConfig();
+  return config.enabled ? "AI + rules" : "Rules engine (AI off)";
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -21,7 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en-GB" className={cn("font-sans", geist.variable)}>
       <body className="min-h-screen bg-slate-50">
-        <AppHeader />
+        <AppHeader aiStatus={aiStatusLabel()} />
         {children}
         <Toaster />
       </body>

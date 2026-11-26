@@ -1,4 +1,4 @@
-import { generateDraft } from "@/lib/drafting/generateDraft";
+import { hybridDraft } from "@/lib/drafting/hybridDraft";
 import { recordEvent } from "@/lib/events/recordEvent";
 import { prisma } from "@/lib/prisma";
 import { getNextAvailableSlots } from "@/lib/slots/getNextAvailableSlot";
@@ -33,7 +33,7 @@ export async function POST(
         })
       : [];
 
-    const draft = generateDraft({
+    const draft = await hybridDraft({
       enquiry: {
         contactName: enquiry.contactName,
         rawText: enquiry.rawText,
@@ -56,6 +56,8 @@ export async function POST(
 
     await recordEvent(prisma, enquiry.id, "DRAFT_GENERATED", {
       method: draft.method,
+      model: draft.model,
+      fallbackReason: draft.fallbackReason,
       intent: enquiry.triageResult?.intent ?? null,
       replyRecommended: draft.replyRecommended,
       slotsSuggested: slots.length,

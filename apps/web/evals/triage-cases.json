@@ -1,0 +1,116 @@
+[
+  { "text": "Hi, can I view 12A Baker St this Friday?", "intent": "VIEWING" },
+  {
+    "text": "I'd like to book a viewing for CLP-07, any time Saturday works.",
+    "intent": "VIEWING"
+  },
+  {
+    "text": "Is the one-bed on Wood Lane still available? Would love to come and see it.",
+    "intent": "VIEWING"
+  },
+  {
+    "text": "Could I pop round next Tuesday to have a look at the Enfield flat?",
+    "intent": "VIEWING"
+  },
+  {
+    "text": "My partner and I are keen on ISL-19. When can we get inside to look around?",
+    "intent": "VIEWING"
+  },
+  {
+    "text": "Does the flat on Green Lanes allow pets? If so we'd like to arrange a viewing.",
+    "intent": "VIEWING"
+  },
+  {
+    "text": "Interested in a valuation for my flat in Enfield.",
+    "intent": "VALUATION"
+  },
+  {
+    "text": "How much is my 3 bed semi worth? Thinking of selling in the spring.",
+    "intent": "VALUATION"
+  },
+  {
+    "text": "We're moving abroad and want to let out our house in Clapton. Can you advise on rent?",
+    "intent": "VALUATION"
+  },
+  {
+    "text": "What would you charge to market my property, and what price would you put on it?",
+    "intent": "VALUATION"
+  },
+  {
+    "text": "Can someone come and appraise my maisonette before I put it on the market?",
+    "intent": "VALUATION"
+  },
+  {
+    "text": "Boiler making noises, need urgent help.",
+    "intent": "MAINTENANCE"
+  },
+  {
+    "text": "There's water coming through the kitchen ceiling from upstairs.",
+    "intent": "MAINTENANCE"
+  },
+  {
+    "text": "Black mould is back in the bedroom corner again.",
+    "intent": "MAINTENANCE"
+  },
+  {
+    "text": "The front door lock is sticking and I can barely get my key to turn.",
+    "intent": "MAINTENANCE"
+  },
+  {
+    "text": "We have no hot water since this morning, flat 33 Wood Lane.",
+    "intent": "MAINTENANCE"
+  },
+  {
+    "text": "The bathroom extractor has given up and the window won't shut properly.",
+    "intent": "MAINTENANCE"
+  },
+  {
+    "text": "Mice in the kitchen cupboards, can you send pest control?",
+    "intent": "MAINTENANCE"
+  },
+  {
+    "text": "Buy crypto now!!! Guaranteed returns, click here.",
+    "intent": "SPAM"
+  },
+  {
+    "text": "We offer SEO services to get your agency to page one of Google.",
+    "intent": "SPAM"
+  },
+  {
+    "text": "Congratulations, you have won a prize! Reply with your bank details.",
+    "intent": "SPAM"
+  },
+  {
+    "text": "Exclusive investment opportunity in overseas off-plan apartments, 20% yield.",
+    "intent": "SPAM"
+  },
+  {
+    "text": "What are your office opening hours over Christmas?",
+    "intent": "GENERAL"
+  },
+  {
+    "text": "Could you review my tenancy agreement before I sign?",
+    "intent": "GENERAL"
+  },
+  {
+    "text": "I submitted my rental application last week, any update?",
+    "intent": "GENERAL"
+  },
+  {
+    "text": "When will my deposit be returned? I moved out on the 1st.",
+    "intent": "GENERAL"
+  },
+  { "text": "Do you need a guarantor if I'm a student?", "intent": "GENERAL" },
+  {
+    "text": "I want to complain about how my last enquiry was handled.",
+    "intent": "GENERAL"
+  },
+  {
+    "text": "Please update my phone number on file to 07700 900123.",
+    "intent": "GENERAL"
+  },
+  {
+    "text": "Can you send me the EPC certificate for my current rental?",
+    "intent": "GENERAL"
+  }
+]
