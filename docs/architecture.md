@@ -114,8 +114,9 @@ concurrent requests can never both send the same draft. What the app cannot
 do is make the transport and the database commit together. If the SMTP
 server accepts the message and the app then crashes before it records
 success, the claim is left in `SENDING` and nobody knows whether the
-customer received it. The same is true of a timeout after the message data
-was sent, which is reported as a failure.
+customer received it. The same is true of a timeout or a dropped
+connection while the message is being sent: the transport reports an
+error, but the server may already have accepted the message.
 
 The app handles this conservatively:
 
@@ -127,9 +128,16 @@ The app handles this conservatively:
 - Every attempt carries the same `Message-ID` header, derived from the
   idempotency key, so if a duplicate does go out the mail client and the
   agent can recognise it as the same message.
-- A `FAILED` attempt (the transport reported an error) can be retried
-  without confirmation. This is usually safe, but an error that arrives
-  after the server accepted the message can still produce a duplicate.
+- Transport errors are classified (`lib/email/sendErrors.ts`). Only a
+  definite failure becomes `FAILED` and can be retried without
+  confirmation: an SMTP 4xx or 5xx rejection, an authentication or
+  envelope error, or a connection that was never established. Timeouts,
+  resets and anything unrecognised become `UNKNOWN`.
+- Recovery is atomic. Marking a reply as sent, a confirmed resend and a
+  late success from the original attempt are each a single conditional
+  update on the claim's status and claim time, inside the same
+  transaction as the enquiry update and event. Whichever runs first wins,
+  and the other changes nothing.
 
 The real fix is a sending provider whose API accepts an idempotency key
 (several transactional email APIs do). The provider would then drop a
