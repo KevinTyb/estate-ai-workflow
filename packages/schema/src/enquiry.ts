@@ -17,16 +17,16 @@ export const intentSchema = z.enum([
 ]);
 
 export const enquirySchema = z.object({
-  id: z.string().cuid().optional(),
+  id: z.cuid().optional(),
   rawText: z.string().min(1),
   source: z.enum(["email", "web", "phone"]),
   status: enquiryStatusSchema.default("PENDING"),
   intent: intentSchema.nullable().optional(),
   contactName: z.string().nullable().optional(),
-  email: z.string().email().nullable().optional(),
+  email: z.email().nullable().optional(),
   phone: z.string().nullable().optional(),
   propertyRef: z.string().nullable().optional(),
-  propertyId: z.string().cuid().nullable().optional(),
+  propertyId: z.cuid().nullable().optional(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
 });

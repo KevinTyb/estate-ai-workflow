@@ -5,34 +5,66 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint:
+  checks:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: estate_ai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/estate_ai?schema=public
+
     steps:
-      # 1️⃣ Check out your repo code
       - uses: actions/checkout@v4
 
-      # 2️⃣ Set up Node (LTS)
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
+          node-version: 22
+          cache: pnpm
 
-      # 3️⃣ Install pnpm
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      # 4️⃣ Cache pnpm store to speed up installs
-      - uses: actions/cache@v4
-        with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-
+      - name: Apply migrations
+        run: pnpm db:migrate
 
-      # 5️⃣ Install dependencies
-      - run: pnpm install --frozen-lockfile
+      - name: Check schema matches migrations
+        working-directory: apps/web
+        run: |
+          PGPASSWORD=postgres createdb -h localhost -U postgres shadow
+          pnpm exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url postgresql://postgres:postgres@localhost:5432/shadow \
+            --exit-code
 
-      # 6️⃣ Run linter
-      - run: pnpm -s -w run lint || true
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

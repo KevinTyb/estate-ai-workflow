@@ -7,13 +7,16 @@ import {
 } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import { EnquiryInboxTable } from "@/components/enquiryInboxTable";
+import { inboxEnquiryInclude } from "@/lib/enquiries/types";
+
+// The inbox reads live data on every request. Without this, `next build`
+// prerenders the page once and serves build-time enquiries forever.
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const enquiries = await prisma.enquiry.findMany({
     orderBy: { createdAt: "desc" },
-    include: {
-      triageResult: true,
-    },
+    include: inboxEnquiryInclude,
   });
 
   const totalEnquiries = enquiries.length;

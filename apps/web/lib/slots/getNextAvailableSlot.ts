@@ -7,15 +7,15 @@ export type SuggestedSlot = {
   endAt: Date;
 };
 
-type GetNextAvailableSlotsArg = {
+type getNextAvailableSlotsArg = {
   propertyId: string;
   limit?: number;
 };
 
-export async function GetNextAvailableSlots({
+export async function getNextAvailableSlots({
   propertyId,
   limit = 5,
-}: GetNextAvailableSlotsArg): Promise<SuggestedSlot[]> {
+}: getNextAvailableSlotsArg): Promise<SuggestedSlot[]> {
   const now = new Date();
 
   const slots = await prisma.slot.findMany({

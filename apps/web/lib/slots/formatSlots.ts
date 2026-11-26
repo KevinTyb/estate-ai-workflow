@@ -1,18 +1,23 @@
-import { SuggestedSlot } from "./getNextAvailableSlot";
+import type { SuggestedSlot } from "./getNextAvailableSlot";
 
-export function formatSlot(slot: SuggestedSlot): string {
-  const start = new Intl.DateTimeFormat("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(slot.startsAt);
+/** All viewing times are shown in UK time, whatever the server's zone. */
+export const AGENCY_TIME_ZONE = "Europe/London";
 
-  const end = new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(slot.endAt);
+const startFormatter = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: AGENCY_TIME_ZONE,
+});
 
-  return `${start} - ${end}`;
+const endFormatter = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: AGENCY_TIME_ZONE,
+});
+
+export function formatSlot(slot: Pick<SuggestedSlot, "startsAt" | "endAt">) {
+  return `${startFormatter.format(slot.startsAt)} - ${endFormatter.format(slot.endAt)}`;
 }
