@@ -16,6 +16,11 @@ export function useEnquiryDetailSheet(enquiry: InboxEnquiry) {
   const [draftReply, setDraftReply] = useState<DraftResponse | null>(() =>
     draftFromSaved(savedDraft),
   );
+  // The text as generated, to tell whether the agent edited it.
+  const [generatedText, setGeneratedText] = useState<{
+    subject: string | null;
+    body: string | null;
+  } | null>(null);
   const [isDraftExpanded, setIsDraftExpanded] = useState(false);
   const [isAcceptingDraft, setIsAcceptingDraft] = useState(false);
   const [draftAcceptError, setDraftAcceptError] = useState<string | null>(null);
@@ -28,6 +33,21 @@ export function useEnquiryDetailSheet(enquiry: InboxEnquiry) {
     !!draftReply &&
     savedDraft.body === draftReply.body &&
     savedDraft.subject === draftReply.subject;
+
+  /** Did the agent change the text the system generated? */
+  function wasEdited() {
+    if (!draftReply) return false;
+    if (generatedText) {
+      return (
+        generatedText.body !== draftReply.body ||
+        generatedText.subject !== draftReply.subject
+      );
+    }
+    // Re-approving a restored draft: edited before, or edited since.
+    return (
+      !!savedDraft && (savedDraft.edited || savedDraft.body !== draftReply.body)
+    );
+  }
 
   async function handleAcceptDraft() {
     if (!draftReply?.replyRecommended || !draftReply.body) return;
@@ -43,6 +63,7 @@ export function useEnquiryDetailSheet(enquiry: InboxEnquiry) {
           subject: draftReply.subject,
           body: draftReply.body,
           method: draftReply.method,
+          edited: wasEdited(),
         }),
       });
 
@@ -71,6 +92,7 @@ export function useEnquiryDetailSheet(enquiry: InboxEnquiry) {
 
   function handleDraftGenerated(draft: DraftResponse) {
     setDraftReply(draft);
+    setGeneratedText({ subject: draft.subject, body: draft.body });
     setDraftAcceptError(null);
   }
 
