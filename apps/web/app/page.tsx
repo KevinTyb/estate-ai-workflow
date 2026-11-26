@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import { EnquiryInboxTable } from "@/components/enquiryInboxTable";
+import { NewEnquiryDialog } from "@/components/newEnquiryDialog";
 import { inboxEnquiryInclude } from "@/lib/enquiries/types";
 
 // The inbox reads live data on every request. Without this, `next build`
@@ -47,14 +48,17 @@ export default async function Home() {
   return (
     <main className="px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-7xl space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-            Enquiry inbox
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Triage incoming enquiries, review suggested replies and book
-            viewings. Nothing is sent or booked until an agent approves it.
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+              Enquiry inbox
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-600">
+              Triage incoming enquiries, review suggested replies and book
+              viewings. Nothing is sent or booked until an agent approves it.
+            </p>
+          </div>
+          <NewEnquiryDialog />
         </div>
 
         <section
