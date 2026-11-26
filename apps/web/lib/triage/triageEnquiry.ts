@@ -1,7 +1,14 @@
+import { getAiConfig } from "@/lib/ai/client";
+import { llmTriage } from "@/lib/ai/triage";
 import { recordEvent } from "@/lib/events/recordEvent";
 import { prisma } from "@/lib/prisma";
 import { matchProperty } from "@/lib/properties/matchProperty";
-import { runRuleBasedTriage } from "./index";
+import { hybridTriage, type LlmTriageFn } from "./hybrid";
+
+function defaultLlm(): LlmTriageFn | null {
+  const config = getAiConfig();
+  return config.enabled ? (text) => llmTriage(text, config.model) : null;
+}
 
 /**
  * Triage an enquiry and persist the result. Also links the enquiry to a
@@ -10,11 +17,14 @@ import { runRuleBasedTriage } from "./index";
  *
  * Returns null when the enquiry does not exist.
  */
-export async function triageEnquiry(enquiryId: string) {
+export async function triageEnquiry(
+  enquiryId: string,
+  { llm = defaultLlm() }: { llm?: LlmTriageFn | null } = {},
+) {
   const enquiry = await prisma.enquiry.findUnique({ where: { id: enquiryId } });
   if (!enquiry) return null;
 
-  const triage = runRuleBasedTriage(enquiry.rawText);
+  const triage = await hybridTriage(enquiry.rawText, llm);
 
   const properties = await prisma.property.findMany({
     select: { id: true, ref: true, address: true, postcode: true },
@@ -26,6 +36,8 @@ export async function triageEnquiry(enquiryId: string) {
     confidence: triage.confidence,
     entities: triage.entities,
     method: triage.method,
+    needsReview: triage.needsReview,
+    reviewReason: triage.reviewReason,
   };
 
   const [, triageResult] = await prisma.$transaction([
@@ -33,7 +45,9 @@ export async function triageEnquiry(enquiryId: string) {
       intent: triage.intent,
       confidence: triage.confidence,
       method: triage.method,
+      needsReview: triage.needsReview,
       propertyMatchedBy: match?.matchedBy ?? null,
+      llm: triage.llm,
     }),
     prisma.triageResult.upsert({
       where: { enquiryId: enquiry.id },
