@@ -29,13 +29,13 @@ decisions to the agent.
    - Message: `Hi, is HAC-04 still available? Could I come and see it this week?`
 2. Save. It is triaged immediately: intent **Viewing**, linked to **HAC-04**,
    with the confidence shown.
-3. Open the enquiry and click **Generate draft**. The reply offers the
+3. Open the enquiry and click **Draft**. The reply offers the
    property's real available slots. Point out the **Suggestions only** note:
    offering a slot doesn't book it.
 4. Edit a line of the draft and **Accept**. The status becomes `DRAFTED`.
-5. **Preview** the email, then **Send**. Sending is simulated: the reply goes
+5. Click **Preview and send**, check the email, then **Send (simulated)**. Sending is simulated: the reply goes
    to the outbox and nothing leaves the system.
-6. In **Booking**, pick a slot and **Book**. The status becomes `SCHEDULED`.
+6. In **Booking**, pick a slot and click **Confirm viewing**. The status becomes `SCHEDULED`.
 7. Optional: open a second browser tab and try to book the same slot for
    another enquiry. It is refused with a clear message, because the database
    enforces one confirmed booking per slot.
