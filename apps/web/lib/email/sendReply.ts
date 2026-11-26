@@ -243,10 +243,21 @@ export async function sendApprovedReply(
     { id: claim.id, claimedAt: claim.claimedAt, from: ["SENDING", "UNKNOWN"] },
     { messageId, transport: transport.name },
   );
-  // Null means this attempt was already resolved (an agent marked it sent)
-  // or superseded by a confirmed resend, which recorded its own outcome.
-  return (
-    sent ?? prisma.outboundEmail.findUniqueOrThrow({ where: { id: claim.id } })
+  if (sent) return sent;
+
+  // This attempt no longer owns the claim. If the reply is recorded as sent
+  // (an agent marked it, or a newer attempt finished), report that. If a
+  // newer attempt is still running, this request did not settle anything,
+  // so it must not look like a successful send.
+  const current = await prisma.outboundEmail.findUniqueOrThrow({
+    where: { id: claim.id },
+  });
+  if (current.status === "SENT") return current;
+  throw new WorkflowError(
+    "SEND_SUPERSEDED",
+    "A newer attempt to send this reply is in progress. Refresh in a moment to see the result.",
+    409,
+    { status: current.status },
   );
 }
 

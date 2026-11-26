@@ -32,7 +32,10 @@ export async function readJson(request: Request): Promise<unknown> {
 /** Map a thrown error to a response: workflow errors keep their status. */
 export function errorResponse(error: unknown, fallbackMessage: string) {
   if (error instanceof WorkflowError) {
-    return jsonError(error.message, error.status, { code: error.code });
+    return jsonError(error.message, error.status, {
+      code: error.code,
+      ...(error.details ? { details: error.details } : {}),
+    });
   }
   console.error(fallbackMessage, error);
   return jsonError(fallbackMessage, 500);
