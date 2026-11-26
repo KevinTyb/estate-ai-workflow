@@ -128,6 +128,14 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
                       <div className="text-xs text-slate-500">
                         {confidenceText ?? null}
                       </div>
+                      {enquiry.triageResult?.needsReview ? (
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-amber-200 bg-amber-50 text-amber-700"
+                        >
+                          Needs review
+                        </Badge>
+                      ) : null}
                     </div>
                   </TableCell>
 

@@ -11,6 +11,8 @@ export type DraftResponse = {
   method: string;
   replyRecommended: boolean;
   slots: DraftSlot[];
+  /** Why an AI draft was replaced by the template, if it was. */
+  fallbackReason?: string | null;
 };
 
 type SavedDraft = {

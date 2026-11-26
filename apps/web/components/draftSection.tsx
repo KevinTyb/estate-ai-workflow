@@ -48,6 +48,14 @@ export function DraftSection({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-slate-900">Draft reply</h3>
+          {draftReply?.replyRecommended ? (
+            <Badge
+              variant="outline"
+              title={draftReply.fallbackReason ?? undefined}
+            >
+              {draftReply.method === "llm" ? "AI draft" : "Template"}
+            </Badge>
+          ) : null}
           {isDraftSaved ? (
             <Badge
               variant="outline"
@@ -95,6 +103,17 @@ export function DraftSection({
             isDraftExpanded ? "max-h-225" : "max-h-130"
           }`}
         >
+          {draftReply.fallbackReason ? (
+            <p className="text-xs text-slate-500">
+              Using the template: {draftReply.fallbackReason}
+            </p>
+          ) : null}
+          {draftReply.method === "llm" ? (
+            <p className="text-xs text-slate-500">
+              Written by Claude. Check it before approving; nothing is sent
+              until you do.
+            </p>
+          ) : null}
           <DetailItem
             label="Subject"
             value={draftReply.subject ?? "No subject"}

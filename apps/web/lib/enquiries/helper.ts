@@ -2,6 +2,18 @@ export function sourceLabel(source: string) {
   return source.charAt(0).toUpperCase() + source.slice(1).toLowerCase();
 }
 
+const METHOD_LABELS: Record<string, string> = {
+  rules: "Rules",
+  llm: "Claude (AI)",
+  "rules-fallback": "Rules (AI unavailable)",
+  template: "Template",
+};
+
+export function methodLabel(method: string | null | undefined) {
+  if (!method) return null;
+  return METHOD_LABELS[method] ?? method;
+}
+
 export function formatConfidence(confidence: number | null | undefined) {
   if (confidence == null) return null;
   return `${Math.round(confidence * 100)}% confidence`;
