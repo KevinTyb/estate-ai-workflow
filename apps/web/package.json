@@ -19,6 +19,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
     "@estate-ai/schema": "workspace:*",
     "@prisma/client": "^6.19.1",
     "class-variance-authority": "^0.7.1",
