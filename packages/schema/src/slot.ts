@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const slotSchema = z.object({
-  id: z.string().cuid().optional(),
-  propertyId: z.string().cuid(),
+  id: z.cuid().optional(),
+  propertyId: z.cuid(),
   startsAt: z.coerce.date(),
   endAt: z.coerce.date(),
   isBooked: z.boolean().default(false),
