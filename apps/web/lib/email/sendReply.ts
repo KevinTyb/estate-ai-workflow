@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type OutboundEmailStatus } from "@prisma/client";
 import { WorkflowError } from "@/lib/api/errors";
 import { recordEvent } from "@/lib/events/recordEvent";
 import { prisma } from "@/lib/prisma";
@@ -13,6 +13,7 @@ import {
   replyIdempotencyKey,
   STALE_CLAIM_MS,
 } from "./sendState";
+import { classifySendError } from "./sendErrors";
 
 export { isStaleClaim, replyIdempotencyKey, STALE_CLAIM_MS };
 
@@ -182,7 +183,12 @@ async function claimSend(
     ...content,
   });
   if (count === 0) throw inProgressError();
-  return { ...existing, ...content, status: "SENDING" as const };
+  return {
+    ...existing,
+    ...content,
+    status: "SENDING" as const,
+    claimedAt: now,
+  };
 }
 
 export type SendOptions = {
@@ -214,27 +220,51 @@ export async function sendApprovedReply(
       messageId: claim.messageId ?? messageIdFor(preview.idempotencyKey),
     }));
   } catch (error) {
-    await prisma.outboundEmail.update({
-      where: { id: claim.id },
-      data: {
-        status: "FAILED",
-        failureReason:
-          error instanceof Error ? error.message.slice(0, 500) : "Unknown",
-      },
+    // Only a definite rejection may be retried freely. A timeout or dropped
+    // connection may have happened after the server accepted the message.
+    const outcome = classifySendError(error);
+    const reason =
+      error instanceof Error ? error.message.slice(0, 500) : "Unknown error";
+    await prisma.outboundEmail.updateMany({
+      where: { id: claim.id, status: "SENDING", claimedAt: claim.claimedAt },
+      data: { status: outcome, failureReason: reason },
     });
+    if (outcome === "UNKNOWN") {
+      throw new WorkflowError(
+        "SEND_OUTCOME_UNKNOWN",
+        `The mail server did not confirm whether it accepted this reply (${reason}). Check, then confirm a resend or mark it as sent.`,
+      );
+    }
     throw error;
   }
 
-  return recordSent(enquiryId, claim.id, {
-    messageId,
-    transport: transport.name,
-  });
+  const sent = await recordSent(
+    enquiryId,
+    { id: claim.id, claimedAt: claim.claimedAt, from: ["SENDING", "UNKNOWN"] },
+    { messageId, transport: transport.name },
+  );
+  // Null means this attempt was already resolved (an agent marked it sent)
+  // or superseded by a confirmed resend, which recorded its own outcome.
+  return (
+    sent ?? prisma.outboundEmail.findUniqueOrThrow({ where: { id: claim.id } })
+  );
 }
 
-/** Mark a claim SENT and move the enquiry on, in one transaction. */
+/** The attempt a transition applies to, and the states it may move from. */
+type ClaimGuard = {
+  id: string;
+  claimedAt: Date;
+  from: OutboundEmailStatus[];
+};
+
+/**
+ * Mark a claim SENT and move the enquiry on, in one transaction. The update
+ * is conditional on the guard, so it cannot overwrite a concurrent resend
+ * or resolution; it returns null and changes nothing if the guard fails.
+ */
 function recordSent(
   enquiryId: string,
-  outboundEmailId: string,
+  guard: ClaimGuard,
   details: {
     messageId?: string | null;
     transport: string;
@@ -242,8 +272,12 @@ function recordSent(
   },
 ) {
   return prisma.$transaction(async (tx) => {
-    const email = await tx.outboundEmail.update({
-      where: { id: outboundEmailId },
+    const { count } = await tx.outboundEmail.updateMany({
+      where: {
+        id: guard.id,
+        claimedAt: guard.claimedAt,
+        status: { in: guard.from },
+      },
       data: {
         status: "SENT",
         ...(details.messageId !== undefined
@@ -252,6 +286,10 @@ function recordSent(
         ...(details.markedByAgent ? {} : { sentAt: new Date() }),
         failureReason: null,
       },
+    });
+    if (count === 0) return null;
+    const email = await tx.outboundEmail.findUniqueOrThrow({
+      where: { id: guard.id },
     });
 
     // A reply moves a new or drafted enquiry to SENT; a scheduled viewing
@@ -289,14 +327,14 @@ export async function markReplySent(enquiryId: string, now: Date = new Date()) {
     );
   }
 
-  const { count } = await prisma.outboundEmail.updateMany({
-    where: { id: claim.id, status: claim.status, claimedAt: claim.claimedAt },
-    data: { status: "UNKNOWN" },
-  });
-  if (count === 0) throw inProgressError();
-
-  return recordSent(enquiryId, claim.id, {
-    transport: claim.transport,
-    markedByAgent: true,
-  });
+  // One conditional transition from exactly the state we inspected. If a
+  // concurrent "Send again" reclaimed the attempt first, this changes
+  // nothing and the agent is told to refresh.
+  const email = await recordSent(
+    enquiryId,
+    { id: claim.id, claimedAt: claim.claimedAt, from: [claim.status] },
+    { transport: claim.transport, markedByAgent: true },
+  );
+  if (!email) throw inProgressError();
+  return email;
 }
