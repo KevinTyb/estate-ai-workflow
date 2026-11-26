@@ -56,7 +56,7 @@ export function DraftButton({
         {isLoading ? "Generating..." : hasDraft ? "Regenerate" : "Draft"}
       </Button>
 
-      {error ? <p className="text-xs text-red-500">{error}</p> : null}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

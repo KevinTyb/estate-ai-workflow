@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError, apiFetch } from "@/lib/api/client";
 
 const fieldClasses =
-  "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus-visible:border-sky-400 focus-visible:ring-3 focus-visible:ring-sky-100";
+  "h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm text-foreground shadow-xs outline-none dark:bg-input/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25";
 
 const EMPTY = {
   contactName: "",
@@ -98,7 +98,7 @@ export function NewEnquiryDialog() {
             </DialogHeader>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1 text-sm font-medium text-slate-700 sm:col-span-2">
+              <div className="space-y-1 text-sm font-medium text-foreground/80 sm:col-span-2">
                 <label htmlFor={fieldId("contactName")} className="block">
                   Name
                 </label>
@@ -111,7 +111,7 @@ export function NewEnquiryDialog() {
                   className={fieldClasses}
                 />
               </div>
-              <div className="space-y-1 text-sm font-medium text-slate-700">
+              <div className="space-y-1 text-sm font-medium text-foreground/80">
                 <label htmlFor={fieldId("email")} className="block">
                   Email
                 </label>
@@ -124,7 +124,7 @@ export function NewEnquiryDialog() {
                   className={fieldClasses}
                 />
               </div>
-              <div className="space-y-1 text-sm font-medium text-slate-700">
+              <div className="space-y-1 text-sm font-medium text-foreground/80">
                 <label htmlFor={fieldId("phone")} className="block">
                   Phone
                 </label>
@@ -137,7 +137,7 @@ export function NewEnquiryDialog() {
                   className={fieldClasses}
                 />
               </div>
-              <div className="space-y-1 text-sm font-medium text-slate-700 sm:col-span-2">
+              <div className="space-y-1 text-sm font-medium text-foreground/80 sm:col-span-2">
                 <label htmlFor={fieldId("source")} className="block">
                   Received via
                 </label>
@@ -152,7 +152,7 @@ export function NewEnquiryDialog() {
                   <option value="phone">Phone</option>
                 </select>
               </div>
-              <div className="space-y-1 text-sm font-medium text-slate-700 sm:col-span-2">
+              <div className="space-y-1 text-sm font-medium text-foreground/80 sm:col-span-2">
                 <label htmlFor={fieldId("rawText")} className="block">
                   Message
                 </label>
@@ -168,7 +168,7 @@ export function NewEnquiryDialog() {
             </div>
 
             {error ? (
-              <p role="alert" className="text-sm text-red-600">
+              <p role="alert" className="text-sm text-destructive">
                 {error}
               </p>
             ) : null}

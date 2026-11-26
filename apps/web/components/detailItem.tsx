@@ -12,10 +12,12 @@ export function DetailItem({
   const hasValue = value != null && value !== "";
   return (
     <div className="space-y-1">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="text-sm text-slate-900">{hasValue ? value : emptyLabel}</p>
+      <p className="text-sm break-words text-foreground">
+        {hasValue ? value : emptyLabel}
+      </p>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 import { useEnquiryDetailSheet } from "@/hooks/useEnquiryDetailSheet";
 import {
   formatConfidence,
+  formatEnumLabel,
   getEntityEntries,
   methodLabel,
   sourceLabel,
@@ -22,6 +23,7 @@ import { DetailItem } from "./detailItem";
 import { DetailSection } from "./detailSection";
 import { DraftSection } from "./draftSection";
 import { SendSection } from "./sendSection";
+import { TONES } from "@/lib/ui/tones";
 
 type EnquiryDetailSheetProps = {
   selectedEnquiry: InboxEnquiry | null;
@@ -50,7 +52,7 @@ export function EnquiryDetailSheet({
 }: EnquiryDetailSheetProps) {
   return (
     <Sheet open={!!selectedEnquiry} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto p-2 sm:max-w-xl">
+      <SheetContent className="w-full overflow-y-auto bg-background p-4 sm:max-w-xl sm:p-6">
         {selectedEnquiry ? (
           // Keyed so per-enquiry state (the draft) resets when switching.
           <EnquiryDetail key={selectedEnquiry.id} enquiry={selectedEnquiry} />
@@ -85,8 +87,8 @@ function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
     : enquiry.propertyRef;
 
   return (
-    <div className="space-y-6">
-      <SheetHeader className="text-left">
+    <div className="space-y-4">
+      <SheetHeader className="p-0 pb-2 text-left">
         <SheetTitle>Enquiry details</SheetTitle>
         <SheetDescription>
           Review the full enquiry and triage result.
@@ -106,7 +108,7 @@ function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
             emptyLabel="No email"
           />
           <DetailItem label="Source" value={sourceLabel(enquiry.source)} />
-          <DetailItem label="Status" value={enquiry.status} />
+          <DetailItem label="Status" value={formatEnumLabel(enquiry.status)} />
           <DetailItem
             label="Property"
             value={propertyLabel}
@@ -114,14 +116,14 @@ function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
           />
           <DetailItem
             label="Intent"
-            value={resolvedIntent}
+            value={formatEnumLabel(resolvedIntent)}
             emptyLabel="Not triaged yet"
           />
         </div>
       </DetailSection>
 
       <DetailSection title="Raw message" defaultOpen>
-        <div className="whitespace-pre-wrap rounded-lg p-3 text-sm leading-6 text-slate-700">
+        <div className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm leading-6 text-foreground">
           {enquiry.rawText}
         </div>
       </DetailSection>
@@ -130,7 +132,7 @@ function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
         {enquiry.triageResult?.needsReview ? (
           <div
             role="status"
-            className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+            className={`mb-4 rounded-lg border px-3 py-2 text-sm ${TONES.amber}`}
           >
             <p className="font-medium">Needs review</p>
             <p className="mt-0.5 text-xs">
@@ -142,7 +144,7 @@ function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <DetailItem
             label="Classified intent"
-            value={enquiry.triageResult?.intent}
+            value={formatEnumLabel(enquiry.triageResult?.intent)}
             emptyLabel="Not triaged yet"
           />
           <DetailItem
@@ -167,21 +169,23 @@ function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
         defaultOpen={entityEntries.length > 0}
       >
         {entityEntries.length > 0 ? (
-          <div className="space-y-3 pt-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             {entityEntries.map((entry) => (
               <div
                 key={entry.key}
-                className="rounded-lg border border-slate-200 px-3 py-2"
+                className="rounded-lg border border-border px-3 py-2"
               >
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {formatLabel(entry.key)}
                 </p>
-                <p className="mt-1 text-sm text-slate-900">{entry.value}</p>
+                <p className="mt-1 text-sm text-foreground">{entry.value}</p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-500">No extracted entities yet.</p>
+          <p className="text-sm text-muted-foreground">
+            No extracted entities yet.
+          </p>
         )}
       </DetailSection>
 

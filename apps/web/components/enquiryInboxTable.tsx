@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { TriageButton } from "@/components/triageButton";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { formatConfidence, sourceLabel } from "@/lib/enquiries/helper";
+import {
+  formatConfidence,
+  formatEnumLabel,
+  sourceLabel,
+} from "@/lib/enquiries/helper";
 import {
   EMPTY_FILTER,
   filterEnquiries,
@@ -21,38 +26,12 @@ import {
   type InboxFilter,
 } from "@/lib/enquiries/filter";
 import type { InboxEnquiry } from "@/lib/enquiries/types";
+import { TONES, toneFor } from "@/lib/ui/tones";
 import { EnquiryDetailSheet } from "./enquiryDetailSheet";
 
 type EnquiryInboxTableProps = {
   enquiries: InboxEnquiry[];
 };
-
-function badgeClasses(value: string | null) {
-  switch (value) {
-    case "PENDING":
-      return "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50";
-    case "DRAFTED":
-      return "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50";
-    case "SENT":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50";
-    case "SCHEDULED":
-      return "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50";
-    case "CLOSED":
-      return "border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-100";
-    case "VIEWING":
-      return "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-50";
-    case "VALUATION":
-      return "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-50";
-    case "MAINTENANCE":
-      return "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-50";
-    case "GENERAL":
-      return "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-100";
-    case "SPAM":
-      return "border-pink-200 bg-pink-50 text-pink-700 hover:bg-pink-50";
-    default:
-      return "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-100";
-  }
-}
 
 const STATUSES = ["PENDING", "DRAFTED", "SENT", "SCHEDULED", "CLOSED"] as const;
 const INTENTS = [
@@ -64,11 +43,7 @@ const INTENTS = [
 ] as const;
 
 const controlClasses =
-  "h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus-visible:border-sky-400 focus-visible:ring-3 focus-visible:ring-sky-100";
-
-function titleCase(value: string) {
-  return value.charAt(0) + value.slice(1).toLowerCase();
-}
+  "h-9 rounded-lg border border-input bg-transparent px-3 text-sm text-foreground shadow-xs outline-none dark:bg-input/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25";
 
 function InboxToolbar({
   filter,
@@ -82,15 +57,21 @@ function InboxToolbar({
   total: number;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b bg-white px-5 py-4 lg:flex-row lg:items-center">
-      <input
-        type="search"
-        value={filter.query}
-        onChange={(e) => onChange({ ...filter, query: e.target.value })}
-        placeholder="Search name, email, message or property"
-        aria-label="Search enquiries"
-        className={`${controlClasses} w-full lg:max-w-xs`}
-      />
+    <div className="flex flex-col gap-3 border-b bg-card px-5 py-4 lg:flex-row lg:items-center">
+      <div className="relative w-full lg:max-w-xs">
+        <SearchIcon
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden
+        />
+        <input
+          type="search"
+          value={filter.query}
+          onChange={(e) => onChange({ ...filter, query: e.target.value })}
+          placeholder="Search enquiries"
+          aria-label="Search enquiries"
+          className={`${controlClasses} w-full pl-9`}
+        />
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={filter.status}
@@ -106,7 +87,7 @@ function InboxToolbar({
           <option value="ALL">All statuses</option>
           {STATUSES.map((status) => (
             <option key={status} value={status}>
-              {titleCase(status)}
+              {formatEnumLabel(status)}
             </option>
           ))}
         </select>
@@ -124,19 +105,19 @@ function InboxToolbar({
           <option value="ALL">All intents</option>
           {INTENTS.map((intent) => (
             <option key={intent} value={intent}>
-              {titleCase(intent)}
+              {formatEnumLabel(intent)}
             </option>
           ))}
           <option value="UNTRIAGED">Not triaged</option>
         </select>
-        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700">
+        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-input px-3 text-sm text-foreground shadow-xs dark:bg-input/30">
           <input
             type="checkbox"
             checked={filter.needsReviewOnly}
             onChange={(e) =>
               onChange({ ...filter, needsReviewOnly: e.target.checked })
             }
-            className="size-4 accent-sky-600"
+            className="size-4 accent-brand"
           />
           Needs review
         </label>
@@ -151,7 +132,10 @@ function InboxToolbar({
           </Button>
         ) : null}
       </div>
-      <p className="text-xs text-slate-500 lg:ml-auto" aria-live="polite">
+      <p
+        className="text-xs text-muted-foreground lg:ml-auto"
+        aria-live="polite"
+      >
         Showing {shown} of {total}
       </p>
     </div>
@@ -173,11 +157,11 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
   if (enquiries.length === 0) {
     return (
       <div className="px-6 py-14 text-center">
-        <p className="text-sm font-medium text-slate-900">No enquiries yet</p>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="text-sm font-medium text-foreground">No enquiries yet</p>
+        <p className="mt-1 text-sm text-muted-foreground">
           New enquiries from email, web and phone will appear here. Run{" "}
-          <code className="rounded bg-slate-100 px-1">pnpm db:seed</code> to
-          load the demo data.
+          <code className="rounded bg-muted px-1">pnpm db:seed</code> to load
+          the demo data.
         </p>
       </div>
     );
@@ -193,7 +177,7 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
       />
       {visible.length === 0 ? (
         <div className="px-6 py-14 text-center">
-          <p className="text-sm font-medium text-slate-900">
+          <p className="text-sm font-medium text-foreground">
             No enquiries match these filters
           </p>
           <Button
@@ -209,14 +193,26 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
       ) : (
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-slate-50">
+            <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="px-5 py-3">Contact</TableHead>
-                <TableHead className="px-5 py-3">Intent</TableHead>
-                <TableHead className="px-5 py-3">Status</TableHead>
-                <TableHead className="px-5 py-3">Property</TableHead>
-                <TableHead className="px-5 py-3">Message</TableHead>
-                <TableHead className="px-5 py-3 text-right">Action</TableHead>
+                <TableHead className="h-10 px-5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Contact
+                </TableHead>
+                <TableHead className="h-10 px-5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Intent
+                </TableHead>
+                <TableHead className="h-10 px-5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Status
+                </TableHead>
+                <TableHead className="h-10 px-5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Property
+                </TableHead>
+                <TableHead className="h-10 px-5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Message
+                </TableHead>
+                <TableHead className="h-10 px-5 text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Action
+                </TableHead>
               </TableRow>
             </TableHeader>
 
@@ -241,18 +237,18 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
                     }}
                     tabIndex={0}
                     aria-label={`Open enquiry from ${enquiry.contactName ?? "unknown contact"}`}
-                    className={`cursor-pointer align-top transition-colors outline-none hover:bg-slate-50 focus-visible:bg-sky-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-300 ${
+                    className={`cursor-pointer align-top transition-colors outline-none hover:bg-muted/50 focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50 ${
                       selectedId === enquiry.id
-                        ? "bg-sky-50/70 ring-1 ring-inset ring-sky-200"
+                        ? "bg-accent/70 ring-1 ring-inset ring-ring/30"
                         : ""
                     }`}
                   >
                     <TableCell className="px-5 py-4">
                       <div className="min-w-55 space-y-1">
-                        <div className="font-medium text-slate-900">
+                        <div className="font-medium text-foreground">
                           {enquiry.contactName ?? "Unknown"}
                         </div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-muted-foreground">
                           <span>{enquiry.email ?? "No email"}</span>
                           <span className="mx-1">·</span>
                           <span>{sourceLabel(enquiry.source)}</span>
@@ -265,25 +261,25 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
                         {resolvedIntent ? (
                           <Badge
                             variant="outline"
-                            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClasses(
+                            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${toneFor(
                               resolvedIntent,
                             )}`}
                           >
-                            {resolvedIntent}
+                            {formatEnumLabel(resolvedIntent)}
                           </Badge>
                         ) : (
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs text-muted-foreground/70">
                             Not triaged yet
                           </span>
                         )}
 
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-muted-foreground">
                           {confidenceText ?? null}
                         </div>
                         {enquiry.triageResult?.needsReview ? (
                           <Badge
                             variant="outline"
-                            className="rounded-full border-amber-200 bg-amber-50 text-amber-700"
+                            className={`rounded-full ${TONES.amber}`}
                           >
                             Needs review
                           </Badge>
@@ -294,19 +290,19 @@ export function EnquiryInboxTable({ enquiries }: EnquiryInboxTableProps) {
                     <TableCell className="px-5 py-4">
                       <Badge
                         variant="outline"
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClasses(
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${toneFor(
                           enquiry.status,
                         )}`}
                       >
-                        {enquiry.status}
+                        {formatEnumLabel(enquiry.status)}
                       </Badge>
                     </TableCell>
 
-                    <TableCell className="px-5 py-4 text-sm text-slate-700">
+                    <TableCell className="px-5 py-4 text-sm text-foreground/80">
                       {enquiry.property?.ref ?? enquiry.propertyRef ?? "—"}
                     </TableCell>
 
-                    <TableCell className="max-w-sm px-5 py-4 text-slate-700">
+                    <TableCell className="max-w-sm px-5 py-4 text-foreground/80">
                       <p className="max-w-90 truncate text-sm">
                         {enquiry.rawText}
                       </p>

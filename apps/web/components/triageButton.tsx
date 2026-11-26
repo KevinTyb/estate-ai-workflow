@@ -52,7 +52,7 @@ export function TriageButton({ enquiryId, triaged }: TriageButtonProps) {
       >
         {busy ? "Triaging..." : triaged ? "Re-triage" : "Triage"}
       </Button>
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

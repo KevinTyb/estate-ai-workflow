@@ -92,3 +92,9 @@ export function getEntityEntries(
 
   return entries;
 }
+
+/** "SCHEDULED" -> "Scheduled", for enum values shown to people. */
+export function formatEnumLabel(value: string | null | undefined) {
+  if (!value) return null;
+  return value.charAt(0) + value.slice(1).toLowerCase();
+}

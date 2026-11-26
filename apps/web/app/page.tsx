@@ -1,10 +1,12 @@
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  CalendarCheckIcon,
+  FlagIcon,
+  InboxIcon,
+  MailQuestionIcon,
+} from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/pageHeader";
+import { StatCard } from "@/components/statCard";
 import { prisma } from "@/lib/prisma";
 import { EnquiryInboxTable } from "@/components/enquiryInboxTable";
 import { NewEnquiryDialog } from "@/components/newEnquiryDialog";
@@ -31,71 +33,46 @@ export default async function Home() {
   const viewingsBooked = enquiries.filter((e) => e.bookings.length > 0).length;
 
   const stats = [
-    { label: "Total enquiries", value: enquiries.length },
+    { label: "Total enquiries", value: enquiries.length, icon: InboxIcon },
     {
       label: "Awaiting reply",
       value: awaitingReply,
-      hint: "Pending or drafted, excluding spam",
+      detail: "Pending or drafted, excluding spam",
+      icon: MailQuestionIcon,
     },
     {
       label: "Needs review",
       value: needsReview,
-      hint: "Low-confidence or disputed triage",
+      detail: "Low-confidence or disputed triage",
+      icon: FlagIcon,
     },
-    { label: "Viewings booked", value: viewingsBooked },
+    {
+      label: "Viewings booked",
+      value: viewingsBooked,
+      icon: CalendarCheckIcon,
+    },
   ];
 
   return (
-    <main className="px-4 py-8 sm:px-6">
+    <main className="px-4 py-8 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-              Enquiry inbox
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              Triage incoming enquiries, review suggested replies and book
-              viewings. Nothing is sent or booked until an agent approves it.
-            </p>
-          </div>
-          <NewEnquiryDialog />
-        </div>
+        <PageHeader
+          title="Enquiry inbox"
+          description="Triage incoming enquiries, review suggested replies and book viewings. Nothing is sent or booked until an agent approves it."
+          actions={<NewEnquiryDialog />}
+        />
 
         <section
           aria-label="Inbox summary"
-          className="grid grid-cols-2 gap-4 lg:grid-cols-4"
+          className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
         >
           {stats.map((stat) => (
-            <Card key={stat.label} className="rounded-2xl shadow-sm">
-              <CardHeader className="pb-2">
-                <CardDescription>{stat.label}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-semibold tracking-tight text-slate-900">
-                  {stat.value}
-                </p>
-                {stat.hint ? (
-                  <p className="mt-1 text-xs text-slate-500">{stat.hint}</p>
-                ) : null}
-              </CardContent>
-            </Card>
+            <StatCard key={stat.label} {...stat} />
           ))}
         </section>
 
-        <Card className="overflow-hidden rounded-2xl shadow-sm">
-          <CardHeader className="border-b bg-white">
-            <CardTitle className="text-lg font-semibold text-slate-900">
-              Inbox
-            </CardTitle>
-            <CardDescription>
-              Select an enquiry to see its triage, draft reply, sending and
-              booking.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="p-0">
-            <EnquiryInboxTable enquiries={enquiries} />
-          </CardContent>
+        <Card className="gap-0 py-0 shadow-xs">
+          <EnquiryInboxTable enquiries={enquiries} />
         </Card>
       </div>
     </main>
