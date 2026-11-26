@@ -1,9 +1,12 @@
 import { z } from "zod";
 
-export const bookingSchema = z.object({
-  enquiryId: z.cuid(),
-  slotId: z.cuid(),
-  notes: z.string().optional(),
+export const bookingStatusSchema = z.enum(["CONFIRMED", "CANCELLED"]);
+
+/** Payload an agent submits to confirm a viewing for an enquiry. */
+export const createBookingSchema = z.object({
+  slotId: z.cuid("Choose a viewing slot"),
+  notes: z.string().trim().max(500).optional(),
 });
 
-export type Booking = z.infer<typeof bookingSchema>;
+export type CreateBookingInput = z.infer<typeof createBookingSchema>;
+export type BookingStatus = z.infer<typeof bookingStatusSchema>;
