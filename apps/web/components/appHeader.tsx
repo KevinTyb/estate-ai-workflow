@@ -12,7 +12,7 @@ const LINKS = [
 export function AppHeader({ aiStatus }: { aiStatus: string }) {
   const pathname = usePathname();
   return (
-    <header className="border-b border-slate-200 bg-white px-6">
+    <header className="border-b border-slate-200 bg-white px-4 sm:px-6">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 py-3">
         <Link href="/" className="text-sm font-semibold text-slate-900">
           Estate AI Workflow
