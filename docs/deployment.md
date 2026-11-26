@@ -38,6 +38,11 @@ should always be password-protected and should never send real email.
 4. Deploy. When `DEMO_USER` and `DEMO_PASSWORD` are set, every page and API
    route asks for them through the browser's sign-in prompt (`proxy.ts`).
 
+   Protection fails closed. If only one of the two is set, or if neither is
+   set on a production server, every request gets a `503` and the reason is
+   logged. To serve the app publicly on purpose, set
+   `ALLOW_PUBLIC_ACCESS=true` instead.
+
 ## 3. Check it
 
 - Open the deployment URL. You should be asked for the demo credentials.
