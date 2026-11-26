@@ -2,18 +2,19 @@ import { Prisma } from "@prisma/client";
 import { WorkflowError } from "@/lib/api/errors";
 import { recordEvent } from "@/lib/events/recordEvent";
 import { prisma } from "@/lib/prisma";
-import { getEmailTransport, type EmailTransport } from "./transport";
+import {
+  getEmailTransport,
+  messageIdFor,
+  type EmailTransport,
+} from "./transport";
+import {
+  isOutcomeUnknown,
+  isStaleClaim,
+  replyIdempotencyKey,
+  STALE_CLAIM_MS,
+} from "./sendState";
 
-/**
- * A SENDING claim older than this is assumed abandoned (the server died
- * mid-send) and may be retried. It is well above the transport timeouts.
- */
-export const STALE_CLAIM_MS = 5 * 60_000;
-
-/** One reply per approved draft version: re-approving yields a new key. */
-export function replyIdempotencyKey(draft: { id: string; updatedAt: Date }) {
-  return `reply:${draft.id}:${draft.updatedAt.getTime()}`;
-}
+export { isStaleClaim, replyIdempotencyKey, STALE_CLAIM_MS };
 
 /**
  * Build exactly what would be sent for an enquiry: the agent-approved
@@ -53,15 +54,24 @@ export async function previewReply(enquiryId: string) {
   const alreadySent =
     !!lastSent && lastSent.sentAt >= enquiry.draftReply.updatedAt;
 
+  const idempotencyKey = replyIdempotencyKey(enquiry.draftReply);
+  const claim = await prisma.outboundEmail.findUnique({
+    where: { idempotencyKey },
+    select: { status: true, claimedAt: true },
+  });
+  const outcomeUnknown = isOutcomeUnknown(claim);
+
   return {
     enquiryId: enquiry.id,
     status: enquiry.status,
     draftReplyId: enquiry.draftReply.id,
-    idempotencyKey: replyIdempotencyKey(enquiry.draftReply),
+    idempotencyKey,
     to: enquiry.email,
     subject: enquiry.draftReply.subject ?? "Re: your enquiry",
     body: enquiry.draftReply.body,
     alreadySent,
+    /** A previous attempt was interrupted; an agent must decide what next. */
+    outcomeUnknown,
     lastSentAt: lastSent?.sentAt ?? null,
   };
 }
@@ -74,6 +84,12 @@ const alreadySentError = () =>
     "This draft has already been sent. Edit and approve it again to send another reply.",
   );
 
+const outcomeUnknownError = () =>
+  new WorkflowError(
+    "SEND_OUTCOME_UNKNOWN",
+    "A previous attempt to send this reply was interrupted, so it may already have been delivered. Check, then confirm a resend or mark it as sent.",
+  );
+
 const inProgressError = () =>
   new WorkflowError(
     "SEND_IN_PROGRESS",
@@ -83,12 +99,15 @@ const inProgressError = () =>
 /**
  * Durably claim the right to send this draft version before calling the
  * transport. The unique idempotency key means only one request can hold
- * the claim; a FAILED or abandoned attempt can be reclaimed exactly once.
+ * the claim. A FAILED attempt (the transport reported an error) can be
+ * retried. An interrupted one is never retried automatically: it becomes
+ * UNKNOWN, and only an explicit `confirmResend` reclaims it.
  */
 async function claimSend(
   preview: Preview,
   transportName: EmailTransport["name"],
   now: Date,
+  confirmResend: boolean,
 ) {
   const key = preview.idempotencyKey;
   const content = {
@@ -96,6 +115,7 @@ async function claimSend(
     subject: preview.subject,
     body: preview.body,
     transport: transportName,
+    messageId: messageIdFor(key),
   };
 
   const existing = await prisma.outboundEmail.findUnique({
@@ -126,40 +146,64 @@ async function claimSend(
     }
   }
 
-  if (existing.status === "SENT") throw alreadySentError();
-  const stale = now.getTime() - existing.claimedAt.getTime() > STALE_CLAIM_MS;
-  if (existing.status === "SENDING" && !stale) throw inProgressError();
+  // Each transition below is a compare-and-swap on the previous status and
+  // claim time, so of two concurrent requests only one can make it.
+  const swap = (data: Prisma.OutboundEmailUpdateManyMutationInput) =>
+    prisma.outboundEmail.updateMany({
+      where: {
+        id: existing.id,
+        status: existing.status,
+        claimedAt: existing.claimedAt,
+      },
+      data,
+    });
 
-  // Retry a failed or abandoned attempt. The condition on the previous
-  // state and claim time makes this a compare-and-swap: of two concurrent
-  // retries, only one matches.
-  const { count } = await prisma.outboundEmail.updateMany({
-    where: {
-      id: existing.id,
-      status: existing.status,
-      claimedAt: existing.claimedAt,
-    },
-    data: {
-      status: "SENDING",
-      claimedAt: now,
-      sentAt: now,
-      failureReason: null,
-      ...content,
-    },
+  if (existing.status === "SENT") throw alreadySentError();
+
+  if (existing.status === "SENDING") {
+    if (!isStaleClaim(existing.claimedAt, now)) throw inProgressError();
+    await swap({
+      status: "UNKNOWN",
+      failureReason: "Interrupted before the outcome was recorded.",
+    });
+    throw outcomeUnknownError();
+  }
+
+  if (existing.status === "UNKNOWN" && !confirmResend) {
+    throw outcomeUnknownError();
+  }
+
+  // FAILED, or UNKNOWN with the agent's confirmation: try again.
+  const { count } = await swap({
+    status: "SENDING",
+    claimedAt: now,
+    sentAt: now,
+    failureReason: null,
+    ...content,
   });
   if (count === 0) throw inProgressError();
   return { ...existing, ...content, status: "SENDING" as const };
 }
 
+export type SendOptions = {
+  transport?: EmailTransport;
+  now?: Date;
+  /** The agent checked an interrupted attempt and chose to send again. */
+  confirmResend?: boolean;
+};
+
 export async function sendApprovedReply(
   enquiryId: string,
-  transport: EmailTransport = getEmailTransport(),
-  now: Date = new Date(),
+  {
+    transport = getEmailTransport(),
+    now = new Date(),
+    confirmResend = false,
+  }: SendOptions = {},
 ) {
   const preview = await previewReply(enquiryId);
   if (preview.alreadySent) throw alreadySentError();
 
-  const claim = await claimSend(preview, transport.name, now);
+  const claim = await claimSend(preview, transport.name, now, confirmResend);
 
   let messageId: string | null;
   try {
@@ -167,6 +211,7 @@ export async function sendApprovedReply(
       to: preview.to,
       subject: preview.subject,
       body: preview.body,
+      messageId: claim.messageId ?? messageIdFor(preview.idempotencyKey),
     }));
   } catch (error) {
     await prisma.outboundEmail.update({
@@ -180,10 +225,33 @@ export async function sendApprovedReply(
     throw error;
   }
 
+  return recordSent(enquiryId, claim.id, {
+    messageId,
+    transport: transport.name,
+  });
+}
+
+/** Mark a claim SENT and move the enquiry on, in one transaction. */
+function recordSent(
+  enquiryId: string,
+  outboundEmailId: string,
+  details: {
+    messageId?: string | null;
+    transport: string;
+    markedByAgent?: true;
+  },
+) {
   return prisma.$transaction(async (tx) => {
     const email = await tx.outboundEmail.update({
-      where: { id: claim.id },
-      data: { status: "SENT", messageId, sentAt: new Date() },
+      where: { id: outboundEmailId },
+      data: {
+        status: "SENT",
+        ...(details.messageId !== undefined
+          ? { messageId: details.messageId }
+          : {}),
+        ...(details.markedByAgent ? {} : { sentAt: new Date() }),
+        failureReason: null,
+      },
     });
 
     // A reply moves a new or drafted enquiry to SENT; a scheduled viewing
@@ -195,9 +263,40 @@ export async function sendApprovedReply(
 
     await recordEvent(tx, enquiryId, "EMAIL_SENT", {
       outboundEmailId: email.id,
-      transport: transport.name,
+      transport: details.transport,
+      ...(details.markedByAgent ? { markedSentByAgent: true } : {}),
     });
 
     return email;
+  });
+}
+
+/**
+ * Resolve an interrupted send by recording that it did go out, e.g. after
+ * the agent found it in the sent folder. Nothing is sent.
+ */
+export async function markReplySent(enquiryId: string, now: Date = new Date()) {
+  const preview = await previewReply(enquiryId);
+  if (preview.alreadySent) throw alreadySentError();
+
+  const claim = await prisma.outboundEmail.findUnique({
+    where: { idempotencyKey: preview.idempotencyKey },
+  });
+  if (!claim || !isOutcomeUnknown(claim, now)) {
+    throw new WorkflowError(
+      "NOTHING_TO_RESOLVE",
+      "There is no interrupted send to mark as sent.",
+    );
+  }
+
+  const { count } = await prisma.outboundEmail.updateMany({
+    where: { id: claim.id, status: claim.status, claimedAt: claim.claimedAt },
+    data: { status: "UNKNOWN" },
+  });
+  if (count === 0) throw inProgressError();
+
+  return recordSent(enquiryId, claim.id, {
+    transport: claim.transport,
+    markedByAgent: true,
   });
 }

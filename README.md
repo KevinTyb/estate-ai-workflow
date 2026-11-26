@@ -31,6 +31,11 @@ Enquiry → Triage → Prepare next action → Draft reply → Agent approves �
 - **Simulated sending**: by default, replies are recorded in an outbox and
   nothing leaves the system. Optionally, they can be relayed to a local
   MailDev inbox.
+- **Safe retries**: each approved draft is claimed before it is sent, so it
+  goes out once even under concurrent clicks. An interrupted send is never
+  retried automatically: the agent sees that the outcome is unknown and
+  chooses to resend or mark it as sent. Delivery over SMTP is still
+  at-least-once (see [Architecture](docs/architecture.md#key-decisions)).
 - **Analytics**: first-response time, reply rate, viewing conversion and draft
   edit rate are all computed from recorded events and timestamps, not from
   estimates.

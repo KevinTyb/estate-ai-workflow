@@ -137,7 +137,8 @@ model OutboundEmail {
   /// One send per approved draft version. Unique, so two requests cannot
   /// both claim the same draft.
   idempotencyKey String?  @unique
-  /// When the current attempt started; a stale SENDING claim can be retried.
+  /// When the current attempt started. A SENDING claim older than the
+  /// timeout is moved to UNKNOWN, not retried.
   claimedAt      DateTime @default(now())
   failureReason  String?
 
@@ -151,6 +152,10 @@ enum OutboundEmailStatus {
   SENDING
   SENT
   FAILED
+  /// The attempt was interrupted after the transport may have accepted the
+  /// message. Never retried automatically: an agent must confirm a resend
+  /// or mark it as sent.
+  UNKNOWN
 }
 
 /// Append-only audit trail of workflow actions; analytics are computed

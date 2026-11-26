@@ -1,6 +1,7 @@
-import { errorResponse } from "@/lib/api/http";
+import { errorResponse, readJson, validationError } from "@/lib/api/http";
 import { previewReply, sendApprovedReply } from "@/lib/email/sendReply";
 import { getEmailTransport } from "@/lib/email/transport";
+import { sendReplySchema } from "@estate-ai/schema";
 import { NextResponse } from "next/server";
 
 type Params = { params: Promise<{ id: string }> };
@@ -19,11 +20,16 @@ export async function GET(_request: Request, { params }: Params) {
   }
 }
 
-/** Send (or, with the default outbox transport, simulate sending) it. */
-export async function POST(_request: Request, { params }: Params) {
+/**
+ * Send (or, with the default outbox transport, simulate sending) it. After
+ * an interrupted attempt the agent must pass `confirmResend: true`.
+ */
+export async function POST(request: Request, { params }: Params) {
   try {
     const { id } = await params;
-    const email = await sendApprovedReply(id);
+    const parsed = sendReplySchema.safeParse(await readJson(request));
+    if (!parsed.success) return validationError(parsed.error);
+    const email = await sendApprovedReply(id, parsed.data);
     return NextResponse.json(email, { status: 201 });
   } catch (error) {
     return errorResponse(error, "Failed to send reply");

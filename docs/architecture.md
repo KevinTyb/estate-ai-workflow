@@ -48,17 +48,18 @@ returns the enquiry to the furthest step it had reached otherwise: `SENT` if
 a reply went out, `DRAFTED` if a draft was approved, otherwise `PENDING`.
 Each action writes an `EnquiryEvent` in the same database transaction.
 
-| Step    | Route                                  | Module                        |
-| ------- | -------------------------------------- | ----------------------------- |
-| Intake  | `POST /api/enquiries`                  | `app/api/enquiries/route.ts`  |
-| Triage  | `POST /api/enquiries/:id/triage`       | `lib/triage/triageEnquiry.ts` |
-| Draft   | `POST /api/enquiries/:id/draft`        | `lib/drafting/hybridDraft.ts` |
-| Approve | `POST /api/enquiries/:id/draft/accept` | route handler (transaction)   |
-| Preview | `GET /api/enquiries/:id/send`          | `lib/email/sendReply.ts`      |
-| Send    | `POST /api/enquiries/:id/send`         | `lib/email/sendReply.ts`      |
-| Slots   | `GET /api/enquiries/:id/slots`         | `lib/slots/*`                 |
-| Book    | `POST /api/enquiries/:id/bookings`     | `lib/bookings/bookings.ts`    |
-| Cancel  | `POST /api/bookings/:id/cancel`        | `lib/bookings/bookings.ts`    |
+| Step    | Route                                    | Module                        |
+| ------- | ---------------------------------------- | ----------------------------- |
+| Intake  | `POST /api/enquiries`                    | `app/api/enquiries/route.ts`  |
+| Triage  | `POST /api/enquiries/:id/triage`         | `lib/triage/triageEnquiry.ts` |
+| Draft   | `POST /api/enquiries/:id/draft`          | `lib/drafting/hybridDraft.ts` |
+| Approve | `POST /api/enquiries/:id/draft/accept`   | route handler (transaction)   |
+| Preview | `GET /api/enquiries/:id/send`            | `lib/email/sendReply.ts`      |
+| Send    | `POST /api/enquiries/:id/send`           | `lib/email/sendReply.ts`      |
+| Resolve | `POST /api/enquiries/:id/send/mark-sent` | `lib/email/sendReply.ts`      |
+| Slots   | `GET /api/enquiries/:id/slots`           | `lib/slots/*`                 |
+| Book    | `POST /api/enquiries/:id/bookings`       | `lib/bookings/bookings.ts`    |
+| Cancel  | `POST /api/bookings/:id/cancel`          | `lib/bookings/bookings.ts`    |
 
 ## Data model
 
@@ -71,7 +72,9 @@ Each action writes an `EnquiryEvent` in the same database transaction.
 - **Slot** is a bookable viewing time for a property.
 - **Booking** links an enquiry to a slot. `activeSlotId` is unique and set
   only while the booking is confirmed.
-- **OutboundEmail** is an append-only record of every reply sent.
+- **OutboundEmail** is one row per approved draft version, keyed by a
+  unique idempotency key. Its status is `SENDING`, `SENT`, `FAILED` or
+  `UNKNOWN`, and only `SENT` rows count as replies.
 - **EnquiryEvent** is an append-only audit log, and the source for analytics.
 
 ## Key decisions
@@ -103,6 +106,35 @@ so routing on confidence sends the model exactly the cases it can help with.
 **People stay in control.** Suggested slots are only suggestions, drafts
 must be approved before they can be sent, and sending is simulated by
 default. The app never contacts a customer or books a viewing on its own.
+
+**Each reply is sent at most once by the app, but delivery is
+at-least-once.** Before calling the mail transport, the app claims the send
+by inserting an `OutboundEmail` row under a unique idempotency key, so two
+concurrent requests can never both send the same draft. What the app cannot
+do is make the transport and the database commit together. If the SMTP
+server accepts the message and the app then crashes before it records
+success, the claim is left in `SENDING` and nobody knows whether the
+customer received it. The same is true of a timeout after the message data
+was sent, which is reported as a failure.
+
+The app handles this conservatively:
+
+- A `SENDING` claim older than five minutes becomes `UNKNOWN`. It is never
+  retried automatically.
+- The inbox shows the agent that the outcome is unknown. They check the sent
+  folder, then either mark the reply as sent (nothing is sent) or confirm a
+  resend.
+- Every attempt carries the same `Message-ID` header, derived from the
+  idempotency key, so if a duplicate does go out the mail client and the
+  agent can recognise it as the same message.
+- A `FAILED` attempt (the transport reported an error) can be retried
+  without confirmation. This is usually safe, but an error that arrives
+  after the server accepted the message can still produce a duplicate.
+
+The real fix is a sending provider whose API accepts an idempotency key
+(several transactional email APIs do). The provider would then drop a
+repeated request itself, and the app could retry interrupted sends safely.
+SMTP has no such mechanism.
 
 **Metrics come from records.** Analytics are computed by a pure function
 (`lib/analytics/metrics.ts`) from stored timestamps: first response time,
