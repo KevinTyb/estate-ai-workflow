@@ -129,13 +129,18 @@ describe("sendApprovedReply", () => {
       return { messageId: "m-1" };
     });
 
-    const first = sendApprovedReply(enquiry.id, transport);
-    const second = sendApprovedReply(enquiry.id, transport);
-    const secondCode = await codeOf(second);
+    // Either request may win. The winner blocks inside the transport until
+    // the gate opens, so the first to settle must be the refused one.
+    const attempts = [
+      codeOf(sendApprovedReply(enquiry.id, transport)),
+      codeOf(sendApprovedReply(enquiry.id, transport)),
+    ];
+    const loserCode = await Promise.race(attempts);
     release();
-    await first;
+    const codes = await Promise.all(attempts);
 
-    expect(secondCode).toBe("SEND_IN_PROGRESS");
+    expect(loserCode).toBe("SEND_IN_PROGRESS");
+    expect(codes.sort()).toEqual(["SEND_IN_PROGRESS", null].sort());
     expect(transport.send).toHaveBeenCalledTimes(1);
     expect(await prisma.outboundEmail.count()).toBe(1);
     expect(
