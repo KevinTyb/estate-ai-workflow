@@ -12,12 +12,14 @@ should always be password-protected and should never send real email.
 2. From your machine, apply the migrations and load the demo data:
 
    ```bash
-   DATABASE_URL="postgresql://…" pnpm db:migrate
-   DATABASE_URL="postgresql://…" pnpm db:seed
+   DATABASE_URL="postgresql://…/estate_demo" pnpm db:migrate
+   DATABASE_URL="postgresql://…/estate_demo" SEED_CONFIRM_DATABASE=estate_demo pnpm db:seed
    ```
 
-   The seed **deletes all existing enquiries, slots and properties**. Run it
-   against a demo database only.
+   The seed **deletes all existing enquiries, slots and properties**. It
+   refuses to run against any non-local database unless
+   `SEED_CONFIRM_DATABASE` repeats that database's name, so a mistyped or
+   production URL can't be wiped by accident. Use a dedicated demo database.
 
 ## 2. Create the Vercel project
 
@@ -55,7 +57,8 @@ should always be password-protected and should never send real email.
 
 ## Resetting the demo
 
-Run `pnpm db:seed` against the demo database again, as in step 1. Slot times
+Run `pnpm db:seed` against the demo database again, with
+`SEED_CONFIRM_DATABASE`, as in step 1. Slot times
 are relative to the moment you seed, so re-seed shortly before a
 presentation to keep the viewing slots in the future.
 
