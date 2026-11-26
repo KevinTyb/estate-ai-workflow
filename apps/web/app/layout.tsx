@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { AppHeader } from "@/components/appHeader";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import "./globals.css";
@@ -19,7 +20,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en-GB" className={cn("font-sans", geist.variable)}>
-      <body>
+      <body className="min-h-screen bg-slate-50">
+        <AppHeader />
         {children}
         <Toaster />
       </body>
