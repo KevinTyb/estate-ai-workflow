@@ -23,6 +23,25 @@ pnpm dev                           # http://localhost:3000
 
 Set `PRISMA_LOG_QUERIES=1` to print SQL queries while debugging.
 
+Integration tests default to `postgresql://postgres:postgres@localhost:5432/estate_ai_test`
+(override with `TEST_DATABASE_URL`) and refuse to run against a database
+whose name does not contain `test`, because they truncate every table.
+
+## Workflow
+
+1. **Triage** classifies the enquiry, extracts entities and links it to a property.
+2. **Draft** generates a reply; suggested viewing slots are suggestions only.
+3. **Accept** approves the (optionally edited) draft. Only approved text can be sent.
+4. **Send** previews and sends the approved reply. By default this is simulated:
+   the reply is recorded in the outbox and nothing leaves the system. Set
+   `EMAIL_TRANSPORT=smtp` and run `docker compose up -d maildev` to deliver to
+   the local MailDev inbox at http://localhost:1080.
+5. **Book** confirms a specific slot. Booking runs in one transaction and the
+   database rejects a second confirmed booking for the same slot.
+
+Every step records a timestamped event; `/analytics` derives response times,
+conversion and other metrics from those records.
+
 ## Development Environment Setup
 
 1. Repo & Version Control (Git repo + SSH Authentication set up)
