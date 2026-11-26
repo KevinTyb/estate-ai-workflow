@@ -1,6 +1,6 @@
 import { generateDraft } from "@/lib/drafting/generateDraft";
 import { prisma } from "@/lib/prisma";
-import { GetNextAvailableSlots } from "@/lib/slots/getNextAvailableSlot";
+import { getNextAvailableSlots } from "@/lib/slots/getNextAvailableSlot";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -26,7 +26,7 @@ export async function POST(
       enquiry.triageResult?.intent === "VIEWING" && !!enquiry.propertyId;
 
     const slots = shouldSuggestSlots
-      ? await GetNextAvailableSlots({
+      ? await getNextAvailableSlots({
           propertyId: enquiry.propertyId!,
           limit: 3,
         })
