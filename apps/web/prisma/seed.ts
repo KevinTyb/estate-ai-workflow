@@ -3,10 +3,11 @@ import { EnquiryStatus, Intent, PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Clear data in relation-safe order
-  await prisma.slot.deleteMany();
-  await prisma.triageResult.deleteMany();
+  // Clear data in relation-safe order. Deleting enquiries cascades to their
+  // triage results, drafts, bookings, sent emails and events; slots can only
+  // go once no booking references them.
   await prisma.enquiry.deleteMany();
+  await prisma.slot.deleteMany();
   await prisma.property.deleteMany();
 
   // Create properties
