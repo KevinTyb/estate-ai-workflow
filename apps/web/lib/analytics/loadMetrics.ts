@@ -23,7 +23,8 @@ export async function loadMetrics({ since }: MetricsRange = {}) {
       select: { enquiryId: true, edited: true },
     }),
     prisma.outboundEmail.findMany({
-      where: relatedWhere,
+      // Claims that are still sending, or failed, are not replies.
+      where: { ...relatedWhere, status: "SENT" },
       select: { enquiryId: true, sentAt: true },
     }),
     prisma.booking.findMany({

@@ -39,7 +39,8 @@ Enquiry → Triage → Prepare next action → Draft reply → Agent approves �
 - **Inbox**: search, filters, summary cards, a detail panel for each enquiry,
   and keyboard access.
 - **Protected demo**: set `DEMO_USER` and `DEMO_PASSWORD` to put the whole app
-  behind a password when hosting it.
+  behind a password. It fails closed: a production server with no
+  credentials refuses requests unless `ALLOW_PUBLIC_ACCESS=true`.
 
 ## Tech stack
 

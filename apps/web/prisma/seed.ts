@@ -6,6 +6,7 @@ import {
   type Property,
   type Slot,
 } from "@prisma/client";
+import { checkSeedTarget } from "../lib/db/seedGuard";
 import { generateDraft } from "../lib/drafting/generateDraft";
 import { runRuleBasedTriage } from "../lib/triage";
 import { REVIEW_BELOW } from "../lib/triage/hybrid";
@@ -442,6 +443,13 @@ async function seedEnquiry(
 }
 
 async function main() {
+  const refusal = checkSeedTarget();
+  if (refusal) {
+    console.error(refusal);
+    process.exitCode = 1;
+    return;
+  }
+
   // Clear data in relation-safe order. Deleting enquiries cascades to their
   // triage results, drafts, bookings, sent emails and events; slots can only
   // go once no booking references them.

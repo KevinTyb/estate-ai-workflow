@@ -1,12 +1,39 @@
 export type DemoCredentials = { user: string; password: string };
 
-/** Demo protection is on only when both variables are set. */
-export function getDemoCredentials(
-  env: Record<string, string | undefined> = process.env,
-): DemoCredentials | null {
-  const user = env.DEMO_USER;
+type Env = Record<string, string | undefined>;
+
+export type DemoAuthMode =
+  | { kind: "open" }
+  | { kind: "protected"; credentials: DemoCredentials }
+  | { kind: "misconfigured"; reason: string };
+
+/**
+ * Decide how to guard the app. Protection is on when both DEMO_USER and
+ * DEMO_PASSWORD are set. It fails closed: a half-configured pair is always
+ * an error, and a production server with neither set refuses requests
+ * unless ALLOW_PUBLIC_ACCESS=true says being public is intended.
+ */
+export function getDemoAuthMode(env: Env = process.env): DemoAuthMode {
+  const user = env.DEMO_USER?.trim();
   const password = env.DEMO_PASSWORD;
-  return user && password ? { user, password } : null;
+
+  if (user && password) {
+    return { kind: "protected", credentials: { user, password } };
+  }
+  if (user || password) {
+    return {
+      kind: "misconfigured",
+      reason: "Set both DEMO_USER and DEMO_PASSWORD, or neither.",
+    };
+  }
+  if (env.NODE_ENV === "production" && env.ALLOW_PUBLIC_ACCESS !== "true") {
+    return {
+      kind: "misconfigured",
+      reason:
+        "DEMO_USER and DEMO_PASSWORD are not set. Set them, or set ALLOW_PUBLIC_ACCESS=true to serve the app without a login.",
+    };
+  }
+  return { kind: "open" };
 }
 
 /** Compare without exiting early, so timing does not reveal a prefix match. */

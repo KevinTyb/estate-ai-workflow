@@ -142,7 +142,9 @@ export async function cancelBooking(bookingId: string) {
           select: {
             id: true,
             draftReply: { select: { id: true } },
-            _count: { select: { outboundEmails: true } },
+            _count: {
+              select: { outboundEmails: { where: { status: "SENT" } } },
+            },
           },
         },
       },

@@ -10,6 +10,7 @@ import { StatCard } from "@/components/statCard";
 import { prisma } from "@/lib/prisma";
 import { EnquiryInboxTable } from "@/components/enquiryInboxTable";
 import { NewEnquiryDialog } from "@/components/newEnquiryDialog";
+import { summariseInbox } from "@/lib/enquiries/summary";
 import { inboxEnquiryInclude } from "@/lib/enquiries/types";
 
 // The inbox reads live data on every request. Without this, `next build`
@@ -22,15 +23,8 @@ export default async function Home() {
     include: inboxEnquiryInclude,
   });
 
-  const awaitingReply = enquiries.filter(
-    (e) =>
-      (e.status === "PENDING" || e.status === "DRAFTED") &&
-      e.triageResult?.intent !== "SPAM",
-  ).length;
-  const needsReview = enquiries.filter(
-    (e) => e.triageResult?.needsReview,
-  ).length;
-  const viewingsBooked = enquiries.filter((e) => e.bookings.length > 0).length;
+  const { awaitingReply, needsReview, viewingsBooked } =
+    summariseInbox(enquiries);
 
   const stats = [
     { label: "Total enquiries", value: enquiries.length, icon: InboxIcon },

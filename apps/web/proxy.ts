@@ -1,16 +1,27 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getDemoCredentials, isAuthorised } from "@/lib/auth/basicAuth";
+import { getDemoAuthMode, isAuthorised } from "@/lib/auth/basicAuth";
 
 /**
- * Password-protects a hosted demo. When DEMO_USER and DEMO_PASSWORD are set,
- * every page and API route requires HTTP Basic auth; locally (unset) the app
- * is open as before.
+ * Password-protects a hosted demo with HTTP Basic auth. Fails closed: if
+ * the credentials are half-configured, or missing on a production server
+ * without ALLOW_PUBLIC_ACCESS=true, every request is refused.
  */
 export function proxy(request: NextRequest) {
-  const credentials = getDemoCredentials();
-  if (!credentials) return NextResponse.next();
+  const mode = getDemoAuthMode();
 
-  if (isAuthorised(request.headers.get("authorization"), credentials)) {
+  if (mode.kind === "open") return NextResponse.next();
+
+  if (mode.kind === "misconfigured") {
+    console.error(`Demo authentication misconfigured: ${mode.reason}`);
+    return new NextResponse(
+      "Service unavailable: authentication is not configured.",
+      {
+        status: 503,
+      },
+    );
+  }
+
+  if (isAuthorised(request.headers.get("authorization"), mode.credentials)) {
     return NextResponse.next();
   }
 
