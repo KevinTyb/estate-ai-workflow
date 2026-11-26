@@ -6,11 +6,14 @@
     "seed": "tsx prisma/seed.ts"
   },
   "scripts": {
-    "db:seed": "prisma db seed",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed"
   },
   "dependencies": {
     "@estate-ai/schema": "workspace:*",
