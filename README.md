@@ -30,15 +30,15 @@ Enquiry → Triage → Prepare next action → Draft reply → Agent approves �
   suggesting a slot never books it.
 - **Simulated sending**: by default, replies are recorded in an outbox and
   nothing leaves the system. Optionally, they can be relayed to a local
-  MailDev inbox.
+  SMTP inbox such as MailDev.
 - **Safe retries**: each approved draft is claimed before it is sent, so it
   goes out once even under concurrent clicks. An interrupted send is never
   retried automatically: the agent sees that the outcome is unknown and
   chooses to resend or mark it as sent. Delivery over SMTP is still
   at-least-once (see [Architecture](docs/architecture.md#key-decisions)).
 - **Analytics**: first-response time, reply rate, viewing conversion and draft
-  edit rate are all computed from recorded events and timestamps, not from
-  estimates.
+  edit rate are all computed from the stored enquiries, drafts, sent emails
+  and bookings and their timestamps, not from estimates.
 - **Intake**: agents log enquiries received by phone, email or the website
   (`POST /api/enquiries`), and each one is triaged as it arrives.
 - **Inbox**: search, filters, summary cards, a detail panel for each enquiry,
@@ -109,8 +109,9 @@ against a database whose name doesn't contain `test`.
    below).
 5. **Book**: the agent confirms one specific slot, and the enquiry moves to
    `SCHEDULED`.
-6. **Analytics**: every step records a timestamped event, and `/analytics`
-   derives its metrics from those events.
+6. **Analytics**: every step records a timestamped event for the audit
+   log, and `/analytics` computes its metrics from the stored enquiries,
+   drafts, sent emails and bookings.
 
 To deliver replies to a local inbox, set `EMAIL_TRANSPORT=smtp` and run
 `docker compose up -d maildev`. Emails then appear at http://localhost:1080.
