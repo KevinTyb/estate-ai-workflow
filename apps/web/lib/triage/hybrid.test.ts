@@ -100,6 +100,50 @@ describe("hybridTriage", () => {
     });
   });
 
+  it.each([
+    ["Looking for somewhere nice in Hackney", 1800],
+    ["I'd say 1500 is about right", 1600],
+    ["Flat 12, I can pay 1,200", 12],
+    ["Call me on 07700 900123", 900123],
+  ])(
+    "drops a budget the message does not support: %j",
+    async (text, budgetPcm) => {
+      const llm = llmReturning({
+        intent: "GENERAL",
+        entities: {
+          email: null,
+          phone: null,
+          propertyRef: null,
+          postcode: null,
+          dates: [],
+          budgetPcm,
+        },
+      });
+      const result = await hybridTriage(text, llm);
+      expect(result.entities.budgetPcm).toBeNull();
+    },
+  );
+
+  it.each([
+    ["Up to 2.2k a month", 2200],
+    ["About 400 per week", 1733],
+    ["Around £1,450", 1450],
+  ])("keeps a budget the message states: %j", async (text, budgetPcm) => {
+    const llm = llmReturning({
+      intent: "GENERAL",
+      entities: {
+        email: null,
+        phone: null,
+        propertyRef: null,
+        postcode: null,
+        dates: [],
+        budgetPcm,
+      },
+    });
+    const result = await hybridTriage(text, llm);
+    expect(result.entities.budgetPcm).toBe(budgetPcm);
+  });
+
   it("keeps deterministic regex values over the model's", async () => {
     const llm = llmReturning({
       intent: "GENERAL",
