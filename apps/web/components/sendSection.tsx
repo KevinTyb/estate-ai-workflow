@@ -146,11 +146,13 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
     ? "This enquiry has no email address to reply to."
     : !enquiry.draftReply
       ? "Approve a draft reply to send it."
-      : !isDraftSaved
-        ? "You have unapproved edits. Accept the draft before sending."
-        : draftAlreadySent
-          ? "This reply has been sent. Edit and accept the draft to send a follow-up."
-          : null;
+      : enquiry.draftReply.staleReason
+        ? "The triage changed after this draft was approved. Accept it again before sending."
+        : !isDraftSaved
+          ? "You have unapproved edits. Accept the draft before sending."
+          : draftAlreadySent
+            ? "This reply has been sent. Edit and accept the draft to send a follow-up."
+            : null;
 
   return (
     <DetailSection title="Send reply" defaultOpen>

@@ -28,8 +28,10 @@ export function useEnquiryDetailSheet(enquiry: InboxEnquiry) {
   const draftSectionRef = useRef<HTMLElement | null>(null);
   const router = useRouter();
 
+  // A draft flagged by re-triage counts as unapproved until accepted again.
   const isDraftSaved =
     !!savedDraft &&
+    !savedDraft.staleReason &&
     !!draftReply &&
     savedDraft.body === draftReply.body &&
     savedDraft.subject === draftReply.subject;
