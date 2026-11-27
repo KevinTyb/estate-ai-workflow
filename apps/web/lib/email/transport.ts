@@ -50,13 +50,9 @@ const outboxTransport: EmailTransport = {
  * email real customers by accident.
  */
 function smtpTransport(): EmailTransport {
-  const host = process.env.SMTP_HOST ?? "localhost";
-  const port = Number(process.env.SMTP_PORT ?? 1025);
+  const { host, port, local } = smtpTarget();
 
-  if (
-    !LOCAL_HOSTS.has(host) &&
-    process.env.EMAIL_ALLOW_REMOTE_SMTP !== "true"
-  ) {
+  if (!local && process.env.EMAIL_ALLOW_REMOTE_SMTP !== "true") {
     throw new Error(
       `Refusing to send through non-local SMTP host "${host}". Set EMAIL_ALLOW_REMOTE_SMTP=true to allow it.`,
     );
@@ -66,7 +62,7 @@ function smtpTransport(): EmailTransport {
     host,
     port,
     secure: false,
-    ignoreTLS: LOCAL_HOSTS.has(host),
+    ignoreTLS: local,
   });
 
   return {
@@ -81,6 +77,35 @@ function smtpTransport(): EmailTransport {
       });
       return { messageId: info.messageId ?? messageId };
     },
+  };
+}
+
+function smtpTarget() {
+  const host = process.env.SMTP_HOST ?? "localhost";
+  const port = Number(process.env.SMTP_PORT ?? 1025);
+  return { host, port, local: LOCAL_HOSTS.has(host) };
+}
+
+/**
+ * How the configured transport should be described to an agent, derived
+ * from the real configuration rather than assumed.
+ */
+export function describeEmailTransport() {
+  if (process.env.EMAIL_TRANSPORT !== "smtp") {
+    return {
+      name: "outbox" as const,
+      label: "Simulated",
+      description:
+        "Simulated send: the reply is recorded but no email leaves the system.",
+    };
+  }
+  const { host, port, local } = smtpTarget();
+  return {
+    name: "smtp" as const,
+    label: local ? `Local SMTP (${host}:${port})` : `SMTP (${host})`,
+    description: local
+      ? `This will be delivered to the local SMTP server at ${host}:${port}.`
+      : `This will be emailed to the customer through ${host}.`,
   };
 }
 

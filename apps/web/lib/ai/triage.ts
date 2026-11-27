@@ -67,9 +67,26 @@ export async function llmTriage(rawText: string, model: string) {
 const digits = (value: string) => value.replace(/\D/g, "");
 const compact = (value: string) => value.replace(/\s+/g, "").toLowerCase();
 
+const AMOUNT_PATTERN = /(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s?(k)?\b/gi;
+
+/**
+ * Monthly amounts the message could support: each number as written, in
+ * thousands when followed by "k", and converted from weekly to monthly.
+ */
+function supportedBudgets(rawText: string) {
+  const amounts = new Set<number>();
+  for (const [, raw, thousands] of rawText.matchAll(AMOUNT_PATTERN)) {
+    const value = Number(raw.replace(/,/g, "")) * (thousands ? 1000 : 1);
+    if (!Number.isFinite(value) || value <= 0) continue;
+    amounts.add(Math.round(value));
+    amounts.add(Math.round((value * 52) / 12));
+  }
+  return amounts;
+}
+
 /**
  * Drop any extracted value that does not actually appear in the message, so
- * a hallucinated email, phone, reference or postcode can never reach the
+ * a hallucinated email, phone, reference, postcode or budget can never reach the
  * database or a customer reply.
  */
 export function groundEntities(
@@ -89,6 +106,10 @@ export function groundEntities(
       : null;
 
   const budget = entities.budgetPcm;
+  // The budget must be a number the customer actually wrote (allowing for
+  // "2.2k" and weekly figures), never one the model inferred or invented.
+  const budgetSupported =
+    budget != null && supportedBudgets(rawText).has(Math.round(budget));
   return {
     email: present(entities.email),
     phone,
@@ -99,8 +120,9 @@ export function groundEntities(
       .map((d) => d.toLowerCase()),
     budgetPcm:
       budget != null &&
+      budgetSupported &&
       Number.isFinite(budget) &&
-      budget > 0 &&
+      budget >= 100 && // smaller figures are flat or house numbers
       budget <= 50_000
         ? Math.round(budget)
         : null,

@@ -1,6 +1,6 @@
 import { errorResponse, readJson, validationError } from "@/lib/api/http";
 import { previewReply, sendApprovedReply } from "@/lib/email/sendReply";
-import { getEmailTransport } from "@/lib/email/transport";
+import { describeEmailTransport } from "@/lib/email/transport";
 import { sendReplySchema } from "@estate-ai/schema";
 import { NextResponse } from "next/server";
 
@@ -11,9 +11,12 @@ export async function GET(_request: Request, { params }: Params) {
   try {
     const { id } = await params;
     const preview = await previewReply(id);
+    const transport = describeEmailTransport();
     return NextResponse.json({
       ...preview,
-      transport: getEmailTransport().name,
+      transport: transport.name,
+      transportLabel: transport.label,
+      transportDescription: transport.description,
     });
   } catch (error) {
     return errorResponse(error, "Failed to preview reply");

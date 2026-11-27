@@ -7,6 +7,7 @@ import { TONES } from "@/lib/ui/tones";
 
 import { DraftButton } from "@/components/draftButton";
 import type { Ref } from "react";
+import { cn } from "@/lib/utils";
 import { DetailItem } from "./detailItem";
 import type { DraftResponse } from "./draftTypes";
 
@@ -14,6 +15,8 @@ type DraftSectionProps = {
   ref?: Ref<HTMLElement>;
   enquiryId: string;
   isDraftSaved: boolean;
+  /** Why re-triage flagged the approved draft, if it did. */
+  staleReason: string | null;
   hasTriageResult: boolean;
   draftReply: DraftResponse | null;
   isDraftExpanded: boolean;
@@ -30,6 +33,7 @@ export function DraftSection({
   ref,
   enquiryId,
   isDraftSaved,
+  staleReason,
   hasTriageResult,
   draftReply,
   isDraftExpanded,
@@ -62,6 +66,10 @@ export function DraftSection({
           {isDraftSaved ? (
             <Badge variant="outline" className={TONES.emerald}>
               Saved
+            </Badge>
+          ) : staleReason ? (
+            <Badge variant="outline" className={TONES.amber}>
+              Needs re-approval
             </Badge>
           ) : null}
         </div>
@@ -184,6 +192,14 @@ export function DraftSection({
             </Button>
           </div>
 
+          {staleReason ? (
+            <p
+              role="status"
+              className={cn("rounded-lg border px-3 py-2 text-xs", TONES.amber)}
+            >
+              {staleReason} Check the draft still fits, then accept it again.
+            </p>
+          ) : null}
           {draftAcceptError ? (
             <p className="text-xs text-destructive">{draftAcceptError}</p>
           ) : null}

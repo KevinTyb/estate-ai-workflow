@@ -195,6 +195,7 @@ function EnquiryDetail({ enquiry }: { enquiry: InboxEnquiry }) {
         hasTriageResult={!!enquiry.triageResult}
         draftReply={draftReply}
         isDraftSaved={isDraftSaved}
+        staleReason={enquiry.draftReply?.staleReason ?? null}
         isDraftExpanded={isDraftExpanded}
         isAcceptingDraft={isAcceptingDraft}
         draftAcceptError={draftAcceptError}

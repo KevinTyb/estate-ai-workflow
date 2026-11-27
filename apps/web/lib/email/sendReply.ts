@@ -43,6 +43,13 @@ export async function previewReply(enquiryId: string) {
       422,
     );
   }
+  if (enquiry.draftReply.staleReason) {
+    throw new WorkflowError(
+      "DRAFT_NEEDS_REAPPROVAL",
+      `${enquiry.draftReply.staleReason} Review the draft and approve it again before sending.`,
+      422,
+    );
+  }
   if (!enquiry.email) {
     throw new WorkflowError(
       "NO_RECIPIENT",

@@ -25,6 +25,8 @@ type Preview = {
   subject: string;
   body: string;
   transport: "outbox" | "smtp";
+  transportLabel: string;
+  transportDescription: string;
   alreadySent: boolean;
 };
 
@@ -97,9 +99,11 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
         body: JSON.stringify({ confirmResend }),
       });
       toast.success(
-        preview?.transport === "smtp"
-          ? "Reply sent to the MailDev inbox"
-          : "Reply sent (simulated)",
+        preview?.transport === "outbox"
+          ? "Reply sent (simulated)"
+          : preview
+            ? `Reply sent via ${preview.transportLabel}`
+            : "Reply sent",
       );
       setPreview(null);
       router.refresh();
@@ -146,11 +150,13 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
     ? "This enquiry has no email address to reply to."
     : !enquiry.draftReply
       ? "Approve a draft reply to send it."
-      : !isDraftSaved
-        ? "You have unapproved edits. Accept the draft before sending."
-        : draftAlreadySent
-          ? "This reply has been sent. Edit and accept the draft to send a follow-up."
-          : null;
+      : enquiry.draftReply.staleReason
+        ? "The triage changed after this draft was approved. Accept it again before sending."
+        : !isDraftSaved
+          ? "You have unapproved edits. Accept the draft before sending."
+          : draftAlreadySent
+            ? "This reply has been sent. Edit and accept the draft to send a follow-up."
+            : null;
 
   return (
     <DetailSection title="Send reply" defaultOpen>
@@ -213,7 +219,7 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
                     {email.subject}
                   </span>
                   <Badge variant="outline">
-                    {email.transport === "smtp" ? "MailDev" : "Simulated"}
+                    {email.transport === "smtp" ? "SMTP" : "Simulated"}
                   </Badge>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -241,9 +247,7 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
           <DialogHeader>
             <DialogTitle>Preview reply</DialogTitle>
             <DialogDescription>
-              {preview?.transport === "smtp"
-                ? "This will be delivered to the local MailDev inbox."
-                : "Simulated send: the reply is recorded but no email leaves the system."}
+              {preview?.transportDescription}
             </DialogDescription>
           </DialogHeader>
 
@@ -291,7 +295,7 @@ export function SendSection({ enquiry, isDraftSaved }: SendSectionProps) {
               {isSending
                 ? "Sending..."
                 : preview?.transport === "smtp"
-                  ? "Send to MailDev"
+                  ? `Send via ${preview.transportLabel}`
                   : "Send (simulated)"}
             </Button>
           </DialogFooter>

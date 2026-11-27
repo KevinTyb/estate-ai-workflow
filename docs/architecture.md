@@ -75,7 +75,8 @@ Each action writes an `EnquiryEvent` in the same database transaction.
 - **OutboundEmail** is one row per approved draft version, keyed by a
   unique idempotency key. Its status is `SENDING`, `SENT`, `FAILED` or
   `UNKNOWN`, and only `SENT` rows count as replies.
-- **EnquiryEvent** is an append-only audit log, and the source for analytics.
+- **EnquiryEvent** is an append-only audit log of every workflow step. It
+  records history; analytics do not read it (see below).
 
 ## Key decisions
 
@@ -144,10 +145,14 @@ The real fix is a sending provider whose API accepts an idempotency key
 repeated request itself, and the app could retry interrupted sends safely.
 SMTP has no such mechanism.
 
-**Metrics come from records.** Analytics are computed by a pure function
-(`lib/analytics/metrics.ts`) from stored timestamps: first response time,
-reply rate, viewing conversion and the share of drafts sent unedited.
-Nothing is estimated.
+**Metrics come from records.** `lib/analytics/loadMetrics.ts` reads the
+workflow records themselves: `Enquiry` (created time, status, intent),
+`DraftReply` (whether the agent edited it), `OutboundEmail` (only `SENT`
+rows, with their sent time) and `Booking`. A pure function
+(`lib/analytics/metrics.ts`) turns those into first response time, reply
+rate, viewing conversion and the share of drafts sent unedited. Nothing is
+estimated. The `EnquiryEvent` log is not used for metrics, so it can stay
+an append-only history without being the source of truth for counts.
 
 ## Testing
 

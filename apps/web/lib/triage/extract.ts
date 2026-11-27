@@ -21,7 +21,11 @@ function extractPhone(rawText: string): string | null {
   return null;
 }
 
-const PROPERTY_REF_REGEX = /\b[A-Z]{2,5}-\d{1,4}[A-Z]?\b/i;
+// Agency references: a letter prefix (BST-12A, CLP-07) or a postcode-style
+// prefix of letters then digits (W12-33, SW1A-4), then a dash and a number.
+// The prefix must start with a letter, so phone numbers never match.
+const PROPERTY_REF_REGEX =
+  /\b(?:[A-Z]{2,5}|[A-Z]{1,2}\d{1,2}[A-Z]?)-\d{1,4}[A-Z]?\b/i;
 
 const POSTCODE_REGEX = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
 

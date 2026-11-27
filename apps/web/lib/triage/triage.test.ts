@@ -48,6 +48,25 @@ describe("classifyIntent", () => {
 });
 
 describe("extractEntities", () => {
+  it.each([
+    ["Boiler making noises at W12-33, need help", "W12-33"],
+    ["Is BST-12A still available?", "BST-12A"],
+    ["Interested in enf-88", "ENF-88"],
+    ["Can I view CLP-07 this Saturday?", "CLP-07"],
+    ["Ref SW1A-4 please", "SW1A-4"],
+    ["Any news on HAC-04?", "HAC-04"],
+  ])("finds the property reference in %j", (text, ref) => {
+    expect(extractEntities(text).propertyRef).toBe(ref);
+  });
+
+  it.each([
+    "Call me on 020-7946 0018",
+    "My postcode is W12 8QT",
+    "Flat 12-14 on the high street",
+  ])("does not mistake %j for a property reference", (text) => {
+    expect(extractEntities(text).propertyRef).toBeNull();
+  });
+
   it("extracts a full set of entities", () => {
     const entities = extractEntities(
       "Hi, can I view BST-12A next Friday? Budget £1,700 pcm. Email sam@example.com or call 07700 900123. I live in NW1 6XE.",
