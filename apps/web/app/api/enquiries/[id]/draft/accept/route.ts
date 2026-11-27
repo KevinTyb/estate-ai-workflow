@@ -25,7 +25,8 @@ export async function POST(
     const [draftReply] = await prisma.$transaction([
       prisma.draftReply.upsert({
         where: { enquiryId: id },
-        update: { subject, body, method, edited },
+        // Approving again clears any flag left by re-triage.
+        update: { subject, body, method, edited, staleReason: null },
         create: { enquiryId: id, subject, body, method, edited },
       }),
       // Approving a draft moves a new enquiry forward, but must not move a
