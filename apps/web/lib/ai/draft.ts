@@ -90,6 +90,127 @@ function normaliseTime(match: RegExpMatchArray): string | null {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
+const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const MONTHS = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
+];
+const WEEKDAY_PATTERN =
+  /\b(mon|tue|wed|thu|fri|sat|sun)(?:day|sday|nesday|rsday|urday)?\b/gi;
+const DAY_MONTH_PATTERN =
+  /\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/gi;
+const NUMERIC_DATE_PATTERN = /\b(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?\b/g;
+
+/** The date a time is attached to, as far as the text says. */
+type DateContext = {
+  label: string;
+  weekday?: number;
+  day?: number;
+  month?: number;
+};
+
+const slotDateFormatter = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "numeric",
+  month: "numeric",
+  timeZone: AGENCY_TIME_ZONE,
+});
+
+function slotDate(date: Date) {
+  const parts = Object.fromEntries(
+    slotDateFormatter.formatToParts(date).map((p) => [p.type, p.value]),
+  );
+  return {
+    weekday: WEEKDAYS.indexOf(String(parts.weekday).slice(0, 3).toLowerCase()),
+    day: Number(parts.day),
+    month: Number(parts.month) - 1,
+  };
+}
+
+/** Read the last weekday and calendar date mentioned in a stretch of text. */
+function readDateContext(window: string): DateContext | null {
+  const last = <T>(items: T[]) => items[items.length - 1];
+  const weekday = last([...window.matchAll(WEEKDAY_PATTERN)]);
+  const dayMonth = last([...window.matchAll(DAY_MONTH_PATTERN)]);
+  const numeric = last([...window.matchAll(NUMERIC_DATE_PATTERN)]);
+  if (!weekday && !dayMonth && !numeric) return null;
+
+  const context: DateContext = {
+    label: [weekday?.[0], dayMonth?.[0] ?? numeric?.[0]]
+      .filter(Boolean)
+      .join(" "),
+  };
+  if (weekday) context.weekday = WEEKDAYS.indexOf(weekday[1].toLowerCase());
+  if (dayMonth) {
+    context.day = Number(dayMonth[1]);
+    context.month = MONTHS.indexOf(dayMonth[2].toLowerCase());
+  } else if (numeric) {
+    // UK order: day/month.
+    context.day = Number(numeric[1]);
+    context.month = Number(numeric[2]) - 1;
+  }
+  return context;
+}
+
+/**
+ * Every time the draft mentions must belong to an available slot, and when
+ * the draft ties it to a date ("Friday 4 Dec, 10:00"), that slot must be on
+ * that date. A real time on the wrong day is still an invented offer.
+ */
+function checkOfferedTimes(
+  text: string,
+  slots: NonNullable<DraftInput["slots"]>,
+): string[] {
+  const problems: string[] = [];
+  const slotTimes = slots.map((s) => ({
+    times: [timeFormatter.format(s.startsAt), timeFormatter.format(s.endAt)],
+    date: slotDate(s.startsAt),
+  }));
+
+  // Dates only carry over within one line or sentence.
+  for (const segment of text.split(/\n|(?<=[.!?])\s+/)) {
+    let context: DateContext | null = null;
+    let previousEnd = 0;
+    for (const match of segment.matchAll(TIME_PATTERN)) {
+      const index = match.index ?? 0;
+      // A date written since the previous time applies to this one; a
+      // range such as "10:00 to 10:30" keeps the date before its start.
+      context = readDateContext(segment.slice(previousEnd, index)) ?? context;
+      previousEnd = index + match[0].length;
+
+      const time = normaliseTime(match);
+      if (!time) continue;
+      const candidates = slotTimes.filter(
+        (s) =>
+          s.times.includes(time) &&
+          (context?.weekday === undefined ||
+            s.date.weekday === context.weekday) &&
+          (context?.day === undefined || s.date.day === context.day) &&
+          (context?.month === undefined || s.date.month === context.month),
+      );
+      if (candidates.length === 0) {
+        const offered = context
+          ? `${context.label} ${match[0].trim()}`
+          : match[0].trim();
+        problems.push(
+          `mentions a time (${offered}) that is not an available slot`,
+        );
+      }
+    }
+  }
+  return problems;
+}
+
 const COMMITMENT_PATTERNS = [
   /\b(is|has been|have been|are|was) (now )?(booked|confirmed|reserved|scheduled)\b/i,
   /\bI(?:'ve| have)? (booked|reserved|scheduled|confirmed) (you|a|the|your)\b/i,
@@ -108,20 +229,7 @@ export function checkDraft(draft: LlmDraft, input: DraftInput): string[] {
   if (!draft.body.trim() || !draft.subject.trim())
     problems.push("empty subject or body");
 
-  const allowed = new Set(
-    slots.flatMap((s) => [
-      timeFormatter.format(s.startsAt),
-      timeFormatter.format(s.endAt),
-    ]),
-  );
-  for (const match of text.matchAll(TIME_PATTERN)) {
-    const time = normaliseTime(match);
-    if (time && !allowed.has(time)) {
-      problems.push(
-        `mentions a time (${match[0].trim()}) that is not an available slot`,
-      );
-    }
-  }
+  problems.push(...checkOfferedTimes(text, slots));
 
   if (COMMITMENT_PATTERNS.some((p) => p.test(text))) {
     problems.push("implies a viewing is already booked");

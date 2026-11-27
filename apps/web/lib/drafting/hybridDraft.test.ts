@@ -62,6 +62,42 @@ describe("hybridDraft", () => {
     expect(draft.fallbackReason).toContain("not an available slot");
   });
 
+  it.each([
+    ["the right time on the wrong weekday", "Can you do Saturday at 10:00?"],
+    [
+      "the right time on the wrong date",
+      "We can show you round on 5 Dec at 10:00.",
+    ],
+    [
+      "a weekday that does not match the date",
+      "How about Thursday 4 Dec, 10:00 - 10:30?",
+    ],
+    ["a numeric date on another day", "Would 11/12 at 10:00 work?"],
+    [
+      "a second offer on another day",
+      "Friday 4 Dec at 10:00 suits, or Monday at 10:00.",
+    ],
+  ])("rejects an AI draft that offers %s", async (_label, middle) => {
+    const draft = await hybridDraft(
+      input,
+      llmReturning({ subject: "Viewing", body: body(middle) }),
+    );
+    expect(draft.method).toBe("template");
+    expect(draft.fallbackReason).toContain("not an available slot");
+  });
+
+  it.each([
+    "Friday 4 Dec, 10:00 - 10:30 is free.",
+    "We could do 4/12 at 10am.",
+    "On Friday we have 10:00 to 10:30 available.",
+  ])("accepts a listed slot written as %j", async (middle) => {
+    const draft = await hybridDraft(
+      input,
+      llmReturning({ subject: "Viewing", body: body(middle) }),
+    );
+    expect(draft).toMatchObject({ method: "llm", fallbackReason: null });
+  });
+
   it("rejects any time when there are no slots", async () => {
     const draft = await hybridDraft(
       { ...input, slots: [] },
