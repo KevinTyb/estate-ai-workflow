@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getEmailTransport, messageIdFor } from "./transport";
+import {
+  describeEmailTransport,
+  getEmailTransport,
+  messageIdFor,
+} from "./transport";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -53,5 +57,35 @@ describe("messageIdFor", () => {
       /@estate\.test>$/,
     );
     expect(messageIdFor("k", "not an address")).toMatch(/@estate-ai\.local>$/);
+  });
+});
+
+describe("describeEmailTransport", () => {
+  it("describes the outbox as simulated", () => {
+    vi.stubEnv("EMAIL_TRANSPORT", "");
+    expect(describeEmailTransport()).toMatchObject({
+      name: "outbox",
+      label: "Simulated",
+    });
+  });
+
+  it("names the local SMTP host and port it will use", () => {
+    vi.stubEnv("EMAIL_TRANSPORT", "smtp");
+    vi.stubEnv("SMTP_HOST", "maildev");
+    vi.stubEnv("SMTP_PORT", "1025");
+    expect(describeEmailTransport()).toMatchObject({
+      name: "smtp",
+      label: "Local SMTP (maildev:1025)",
+    });
+  });
+
+  it("says plainly when a remote server will email the customer", () => {
+    vi.stubEnv("EMAIL_TRANSPORT", "smtp");
+    vi.stubEnv("SMTP_HOST", "smtp.example.com");
+    expect(describeEmailTransport()).toMatchObject({
+      label: "SMTP (smtp.example.com)",
+      description:
+        "This will be emailed to the customer through smtp.example.com.",
+    });
   });
 });
